@@ -27,47 +27,27 @@ tests/
 
 ## Commands
 
-<!-- TODO: Fill in the commands for your project. Remove any that don't apply. -->
-
-```bash
-# Install dependencies
-npm install
-
-# Run development server
-npm run dev
-
-# Run tests
-npm test
-
-# Lint
-npm run lint
-
-# Type check
-npx tsc --noEmit
-
-# Build
-npm run build
-```
+<!-- TODO: List your project's key commands, e.g.:
+npm install / pip install -e . / go mod download
+npm test / pytest / go test ./...
+npm run lint / ruff check . / golangci-lint run
+-->
 
 ## Quality Gates
 
-<!-- TODO: List the checks that must pass before code is merged. -->
-<!-- These should match your CI pipeline and pre-commit hooks. -->
+Quality gates are enforced automatically via pre-commit hooks and CI. See `.pre-commit-config.yaml` and `.github/workflows/` for the configured checks.
 
-| Gate | Command | Required |
-|------|---------|----------|
-| Tests | `npm test` | Yes |
-| Lint | `npm run lint` | Yes |
-| Type check | `npx tsc --noEmit` | Yes |
-| Build | `npm run build` | No |
+## Testing
 
-## Testing Rules
+<!-- TODO: Adjust these guidelines to match your project's testing standards. -->
 
-<!-- TODO: Adjust these rules to match your project's testing standards. -->
+<!-- Write failing tests first, then implement (TDD). Prefer the narrowest test
+that properly covers a change:
+- Unit tests for pure logic, calculations, data transformations
+- Integration tests for cross-boundary behavior (API routes + DB, service + external API)
+- End-to-end tests for critical user flows (login → action → result)
 
-- All production code changes must include tests.
-- Prefer unit tests; use integration tests for cross-boundary behavior.
-- Tests must be deterministic (no flaky tests, no network calls without mocks).
+Tests must be deterministic — no flaky tests, no real network calls without mocks. -->
 
 ## Key Conventions
 
@@ -82,62 +62,13 @@ npm run build
 
 ## Workflow
 
-This project uses [agent-workflow](https://github.com/jdelfino/agent-workflow) for AI-assisted development.
-
-| Command | Purpose |
-|---------|---------|
-| `/plan <description>` | Explore codebase, discuss tradeoffs, create GitHub Issues |
-| `/work #N` | Implement a task, fix review findings, or orchestrate child issues |
-
-### How It Works
-
-- **`/plan`** decomposes a feature into a parent issue with child task issues, each scoped to a single agent session.
-- **`/work #N`** creates a branch and PR for issue N, then implements leaf tasks or delegates to child issues recursively.
-- **Automated reviewers** run on every PR, filing review findings as child issues with severity labels.
-- **Guardrail checks** enforce scope, test coverage, dependency hygiene, and other structural rules.
-- **Auto-merge** proceeds when all checks pass and no blocking issues remain.
-
-See the skill files in `.claude/skills/` for detailed agent instructions.
+This project uses [agent-workflow](https://github.com/jdelfino/agent-workflow). Use `/plan` to decompose features into issues and `/work #N` to implement them. See `.claude/skills/` for detailed agent instructions.
 
 ## GitHub Issues Conventions
 
-This project uses GitHub Issues with sub-issues and dependencies to track all work.
+Work is tracked with GitHub Issues using sub-issues and `blocked-by` dependencies.
 
-### Issue Hierarchy
-
-```
-#10 Epic / Feature          (parent issue — gets a branch and PR)
- ├── #11 Task               (child — scoped to one agent session)
- ├── #12 Task               (child — blocked by #11)
- ├── #13 Task               (child — blocked by #12)
- ├── #20 Review finding      (created by automated review)
- └── #21 Review finding      (created by automated review)
-```
-
-### Issue Types
-
-- **Task issues** are created during `/plan`. Each is a discrete unit of work with clear acceptance criteria and dependency relationships.
-- **Review finding issues** are created by reviewer agents during PR review. They are children of the parent issue being reviewed.
-- **Follow-up issues** are non-blocking improvements (`should-fix`, `suggestion`) that remain in the backlog.
-
-### Labels
-
-| Label | Meaning |
-|-------|---------|
-| `blocking` | Critical review finding — blocks PR merge |
-| `should-fix` | Important but non-blocking review finding |
-| `suggestion` | Optional improvement identified during review |
-
-### Dependencies
-
-- **Parent/child:** Native GitHub sub-issues
-- **Task ordering:** Native `blocked-by` relationships (set during planning)
-- **Review blocks parent:** `blocking` label + native dependency (set by reviewers)
-
-### Branching Model
-
-Branch hierarchy mirrors issue hierarchy:
-
-- Non-leaf issues get a branch: `feat/{N}-{slug}` off the parent's branch (or `main`)
-- Leaf tasks commit directly to their parent's branch
-- PRs target the parent's branch and include `fixes #N`
+- **Epics** are parent issues with child tasks; each child is scoped to one agent session
+- **Review findings** are filed as children of the reviewed issue during automated PR review
+- Labels: `blocking` (blocks merge), `should-fix` (important, non-blocking), `suggestion` (optional)
+- Branches mirror issue hierarchy: `feat/{N}-{slug}`, leaf tasks commit to parent branch
