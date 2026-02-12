@@ -140,7 +140,7 @@ This is the skeleton. Non-negotiable, deterministic, platform-enforced.
 - **Branch protection on main.** No direct pushes. PRs required. Status checks required. No exceptions.
 - **Required status checks.** Tests, linting, the orchestrator check (see Layer 3), and all enabled guardrail checks must pass before merge. Guardrail checks use native GitHub check run conclusions (`success`, `neutral`, `action_required`) to report results — no custom schema needed.
 - **Auto-merge enabled.** When all checks pass and required reviews (if any) are satisfied, the PR merges automatically. The default path is fully automated.
-- **Setup script.** A `setup.sh` that configures all of the above via `gh api` commands. Run once, enforcement is in place.
+- **`/configure` command.** An interactive Claude Code command that sets up all of the above: branch protection via `gh api`, git hooks (Layer 0), Claude authentication (`/install-github-app`), guardrail configuration, and CLAUDE.md population. Run once from a Claude Code terminal after installing the workflow files.
 
 ### Layer 2: Intelligence (Skills)
 
@@ -469,15 +469,15 @@ agent-workflow-template/
 │   │   └── reviewer-architecture.md   # Architecture review skill
 │   └── commands/
 │       ├── plan.md                    # /plan command
-│       └── work.md                    # /work command
+│       ├── work.md                    # /work command
+│       └── configure.md              # /configure command (interactive setup)
 ├── CLAUDE.md                          # Starter project context (fill in per project)
-├── setup.sh                           # Configures branch protection via gh api
 └── README.md
 ```
 
 ## What Ships in v1
 
-- Setup script for branch protection and required status checks
+- `/configure` command for interactive setup: branch protection, git hooks, Claude auth, guardrails, CLAUDE.md
 - Orchestrator status check Action (the brain — blocker evaluation, re-review assessment)
 - PR review workflow invoking three reviewer skills via `claude -p`
 - Guardrail checks as independent workflow files using native GitHub check runs (scope, test ratio, dependency changes, API surface, commit messages)
