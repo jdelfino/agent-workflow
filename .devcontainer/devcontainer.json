@@ -1,5 +1,6 @@
 {
   "name": "agent-workflow",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
-  "remoteUser": "vscode"
+  "remoteUser": "vscode",
+  "postCreateCommand": "curl -fsSL https://claude.ai/install.sh | sh"
 }
