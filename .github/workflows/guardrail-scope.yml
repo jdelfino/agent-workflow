@@ -115,15 +115,17 @@ jobs:
             }
             const issueNumber = parseInt(issueMatch[1], 10);
 
-            // --- Step 4: Get the issue body ---
-            let issueBody;
+            // --- Step 4: Get the issue body + all child issue bodies ---
+            // File paths may be listed in the parent issue, its child issues, or both.
+            // Collect bodies from the parent and all sub-issues.
+            const issueBodies = [];
             try {
               const issue = await github.rest.issues.get({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issueNumber
               });
-              issueBody = issue.data.body || '';
+              issueBodies.push(issue.data.body || '');
             } catch (e) {
               await createCheckRun(
                 'success',
@@ -133,7 +135,32 @@ jobs:
               return;
             }
 
-            // --- Step 5: Extract file paths from the issue body ---
+            // Query sub-issues via GraphQL
+            try {
+              const subIssueResult = await github.graphql(`
+                query($owner: String!, $repo: String!, $number: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    issue(number: $number) {
+                      subIssues(first: 50) {
+                        nodes { body }
+                      }
+                    }
+                  }
+                }
+              `, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                number: issueNumber
+              });
+              const children = subIssueResult.repository.issue.subIssues.nodes || [];
+              for (const child of children) {
+                if (child.body) issueBodies.push(child.body);
+              }
+            } catch (e) {
+              // Sub-issues query failed — continue with parent body only
+            }
+
+            // --- Step 5: Extract file paths from all issue bodies ---
             // Match paths that look like file paths:
             //   - backtick-wrapped paths: `src/foo/bar.ts`
             //   - paths with extensions: src/foo/bar.ts
@@ -148,20 +175,23 @@ jobs:
             ];
 
             const scopeFiles = new Set();
-            for (const pattern of filePathPatterns) {
-              let match;
-              while ((match = pattern.exec(issueBody)) !== null) {
-                const filePath = match[1].replace(/^\//, ''); // strip leading slash
-                scopeFiles.add(filePath);
+            for (const body of issueBodies) {
+              for (const pattern of filePathPatterns) {
+                pattern.lastIndex = 0; // reset regex state for each body
+                let match;
+                while ((match = pattern.exec(body)) !== null) {
+                  const filePath = match[1].replace(/^\//, ''); // strip leading slash
+                  scopeFiles.add(filePath);
+                }
               }
             }
 
             if (scopeFiles.size === 0) {
-              // No file paths found in issue — cannot enforce scope
+              // No file paths found in any issue — cannot enforce scope
               await createCheckRun(
                 'success',
-                'Scope enforcement: no files listed in issue',
-                `Issue #${issueNumber} does not list any file paths. Scope enforcement skipped.`
+                'Scope enforcement: no files listed in issues',
+                `Issue #${issueNumber} and its children do not list any file paths. Scope enforcement skipped.`
               );
               return;
             }
@@ -205,7 +235,7 @@ jobs:
               await createCheckRun(
                 'success',
                 'Scope enforcement: all files in scope',
-                `All ${changedFiles.length} changed files are listed in issue #${issueNumber}.`
+                `All ${changedFiles.length} changed files are within scope of issue #${issueNumber} and its children.`
               );
               return;
             }
@@ -215,7 +245,7 @@ jobs:
               await createCheckRun(
                 'success',
                 `Scope enforcement: approved by reviewer (${outOfScope.length} files outside scope)`,
-                `PR modifies ${outOfScope.length} file(s) not listed in issue #${issueNumber}, but a non-stale approval exists.\n\nOut-of-scope files:\n${outOfScope.map(f => '- `' + f.filename + '`').join('\n')}`
+                `PR modifies ${outOfScope.length} file(s) not listed in issue #${issueNumber} or its children, but a non-stale approval exists.\n\nOut-of-scope files:\n${outOfScope.map(f => '- `' + f.filename + '`').join('\n')}`
               );
               return;
             }
@@ -226,7 +256,7 @@ jobs:
               start_line: 1,
               end_line: 1,
               annotation_level: 'warning',
-              message: `This file is not listed in the task scope for issue #${issueNumber}. If this change is intentional, approve the PR to override.`
+              message: `This file is not listed in the task scope for issue #${issueNumber} or its children. If this change is intentional, approve the PR to override.`
             }));
 
             // Determine conclusion based on config and severity
@@ -235,12 +265,12 @@ jobs:
             const conclusion = isMinor ? 'neutral' : config.conclusion;
 
             const summary = [
-              `PR modifies ${outOfScope.length} file(s) not listed in issue #${issueNumber}.`,
+              `PR modifies ${outOfScope.length} file(s) not listed in issue #${issueNumber} or its children.`,
               '',
               '**Out-of-scope files:**',
               ...outOfScope.map(f => `- \`${f.filename}\``),
               '',
-              `**In-scope files (from issue):**`,
+              `**In-scope files (from issues):**`,
               ...[...scopeFiles].map(f => `- \`${f}\``),
               '',
               'To resolve: either update the issue to include these files, or approve the PR to override this check.'
