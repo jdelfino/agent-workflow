@@ -1,0 +1,46 @@
+name: Review Finding
+description: An issue found during automated or manual code review.
+title: ""
+labels: ["review-finding"]
+body:
+  - type: textarea
+    id: finding-description
+    attributes:
+      label: Finding description
+      description: Describe the problem found during review.
+      placeholder: Explain what is wrong and why it matters.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How critical is this finding?
+      options:
+        - blocking
+        - should-fix
+        - suggestion
+    validations:
+      required: true
+
+  - type: textarea
+    id: affected-files
+    attributes:
+      label: Affected files
+      description: List the files and line numbers where the issue was found.
+      placeholder: |
+        - path/to/file1.ts:42
+        - path/to/file2.ts:15-23
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested-fix
+    attributes:
+      label: Suggested fix
+      description: How should this finding be addressed?
+      placeholder: Describe the recommended approach to fix this issue.
+    validations:
+      required: false
