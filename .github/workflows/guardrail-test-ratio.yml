@@ -21,21 +21,34 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const yaml = require('js-yaml');
 
-            // --- Load configuration ---
+            // --- Load configuration (simple YAML parsing, no js-yaml dependency) ---
             const configPath = '.github/agent-workflow/config.yaml';
             let threshold = 0.5;
             let enabled = true;
             let configuredConclusion = 'action_required';
 
             try {
-              const configContent = fs.readFileSync(configPath, 'utf8');
-              const config = yaml.load(configContent);
-              const testRatioConfig = config?.guardrails?.['test-ratio'] || {};
-              threshold = testRatioConfig.threshold ?? 0.5;
-              enabled = testRatioConfig.enabled ?? true;
-              configuredConclusion = testRatioConfig.conclusion ?? 'action_required';
+              const content = fs.readFileSync(configPath, 'utf8');
+              const lines = content.split('\n');
+              let inSection = false;
+              for (const line of lines) {
+                if (/^\s+test-ratio:/.test(line)) {
+                  inSection = true;
+                  continue;
+                }
+                if (inSection && /^\s{0,4}\S/.test(line) && !line.match(/^\s{6,}/)) {
+                  break; // Next sibling or parent key
+                }
+                if (inSection) {
+                  const enabledMatch = line.match(/^\s+enabled:\s*(true|false)/);
+                  if (enabledMatch) enabled = enabledMatch[1] === 'true';
+                  const conclusionMatch = line.match(/^\s+conclusion:\s*(\S+)/);
+                  if (conclusionMatch) configuredConclusion = conclusionMatch[1];
+                  const thresholdMatch = line.match(/^\s+threshold:\s*([0-9.]+)/);
+                  if (thresholdMatch) threshold = parseFloat(thresholdMatch[1]);
+                }
+              }
             } catch (e) {
               core.info(`Could not read config from ${configPath}, using defaults: ${e.message}`);
             }
