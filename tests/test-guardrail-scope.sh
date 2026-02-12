@@ -204,6 +204,13 @@ else
   fail "Does not handle missing file paths in issue"
 fi
 
+# Test 22b: Queries sub-issues via GraphQL for scope files
+if grep -q 'subIssues' "$WORKFLOW_FILE" 2>/dev/null; then
+  pass "Queries sub-issues for scope file extraction"
+else
+  fail "Does not query sub-issues — only checks parent issue for file paths"
+fi
+
 # Test 23: Paginates changed files (per_page: 100)
 if grep -q 'per_page: 100' "$WORKFLOW_FILE" 2>/dev/null; then
   pass "Paginates changed files with per_page 100"
