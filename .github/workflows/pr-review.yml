@@ -84,7 +84,7 @@ jobs:
             File findings as sub-issues of #${{ needs.resolve-context.outputs.parent-issue }}.
             See .claude/skills/github-issues/SKILL.md for the GraphQL patterns.
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
   # ── Tests Reviewer ───────────────────────────────────────────────────
   review-tests:
@@ -110,7 +110,7 @@ jobs:
             File findings as sub-issues of #${{ needs.resolve-context.outputs.parent-issue }}.
             See .claude/skills/github-issues/SKILL.md for the GraphQL patterns.
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
   # ── Architecture Reviewer ────────────────────────────────────────────
   review-architecture:
@@ -136,4 +136,4 @@ jobs:
             File findings as sub-issues of #${{ needs.resolve-context.outputs.parent-issue }}.
             See .claude/skills/github-issues/SKILL.md for the GraphQL patterns.
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
