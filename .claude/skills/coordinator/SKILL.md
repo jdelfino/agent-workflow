@@ -1,6 +1,6 @@
 ---
 name: coordinator
-description: Single entry point for /work #N. Sets up worktree, creates branch and PR for parent issues, delegates to implementer subagents. Invoked via /work.
+description: Single entry point for /work #N. Sets up worktree, creates branch and PR for parent issues, pushes commits, delegates to implementer subagents. Invoked via /work.
 user-invocable: true
 ---
 
@@ -92,16 +92,15 @@ Description:
 <paste full issue body>
 ```
 
-**On implementer success:**
-1. Commit the changes in the worktree
-2. Push to the branch
-3. Update PR to include `Fixes #<task>`:
+**On implementer success** (implementer has already committed):
+1. Push to the branch
+2. Update PR to include `Fixes #<task>`:
    ```bash
    BODY=$(gh pr view --json body -q .body)
    gh pr edit --body "$BODY
    Fixes #<task>"
    ```
-4. Check for newly unblocked children, continue
+3. Check for newly unblocked children, continue
 
 **On implementer failure:**
 - Keep issue open
@@ -160,7 +159,9 @@ Details: <explanation>
 
 - **MAY** use `gh` CLI for issue and PR operations
 - **MAY** spawn implementer subagents
+- **MAY** push commits to the branch
+- **NEVER** commit directly — implementers commit (pre-commit hook enforces quality)
 - **NEVER** manually close issues — they close on PR merge via `Fixes #N`
+- **MERGE STRATEGY:** squash if all changes are related, merge commit if not, rebase if history is messy/mixed
 - **ALWAYS** use a worktree
-- **ALWAYS** run quality checks before pushing
 - **ALWAYS** add `Fixes #N` to PR when completing a task
