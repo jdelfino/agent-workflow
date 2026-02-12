@@ -2,5 +2,8 @@
   "name": "agent-workflow",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
   "remoteUser": "vscode",
+  "mounts": [
+    "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached"
+  ],
   "postCreateCommand": "curl -fsSL https://claude.ai/install.sh | bash"
 }
