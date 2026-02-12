@@ -99,17 +99,8 @@ gh issue create \
 EOF
 )"
 
-# Get issue IDs and add as sub-issue of parent
-# (See AGENTS.md for GraphQL commands)
-```
-
-For blocking findings, also add the blocking relationship:
-
-```bash
-# After creating the finding issue, if it's blocking:
-gh api repos/OWNER/REPO/issues/PARENT_NUM/dependencies/blocked_by \
-  -X POST \
-  -f blocked_by_issue_id="<finding-issue-node-id>"
+# Add as sub-issue of parent + add blocking relationship if blocking
+# See .claude/skills/github-issues/SKILL.md for GraphQL patterns
 ```
 
 ## Report Your Outcome

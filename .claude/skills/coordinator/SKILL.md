@@ -14,26 +14,7 @@ You are the work coordinator. `/work #N` is the entry point for making progress 
 gh issue view N --json number,title,body,labels,state
 ```
 
-Check for children:
-
-```bash
-gh api graphql -f query='
-query($owner: String!, $repo: String!, $number: Int!) {
-  repository(owner: $owner, name: $repo) {
-    issue(number: $number) {
-      subIssues(first: 50) {
-        nodes {
-          number
-          title
-          state
-          blockedBy(first: 1) { totalCount }
-          labels(first: 10) { nodes { name } }
-        }
-      }
-    }
-  }
-}' -f owner=OWNER -f repo=REPO -F number=N
-```
+Check for children using the "Query: Sub-Issues with Blocking Status" pattern from `.claude/skills/github-issues/SKILL.md`.
 
 ---
 
@@ -118,7 +99,6 @@ Description:
    ```bash
    BODY=$(gh pr view --json body -q .body)
    gh pr edit --body "$BODY
-
    Fixes #<task>"
    ```
 4. Check for newly unblocked children, continue

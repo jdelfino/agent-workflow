@@ -22,7 +22,7 @@ You are a planner agent. Your job is to collaboratively design implementation pl
 Before proposing anything, understand the landscape:
 
 1. Read the issue/description to understand the goal
-2. Read high-level project documentation (README, CLAUDE.md, AGENTS.md) if you haven't already
+2. Read high-level project documentation (README, CLAUDE.md) if you haven't already
 3. Explore relevant parts of the codebase:
    - Existing patterns and conventions
    - Shared types and packages
@@ -103,54 +103,13 @@ EOF
 
 #### 3c. Add Sub-Issue Relationships
 
-After creating child issues, link them to the parent:
-
-```bash
-# Get node IDs for parent and child
-PARENT_ID=$(gh api graphql -f query='
-query($owner: String!, $repo: String!, $num: Int!) {
-  repository(owner: $owner, name: $repo) {
-    issue(number: $num) { id }
-  }
-}' -f owner=OWNER -f repo=REPO -F num=PARENT_NUM --jq '.data.repository.issue.id')
-
-CHILD_ID=$(gh api graphql -f query='
-query($owner: String!, $repo: String!, $num: Int!) {
-  repository(owner: $owner, name: $repo) {
-    issue(number: $num) { id }
-  }
-}' -f owner=OWNER -f repo=REPO -F num=CHILD_NUM --jq '.data.repository.issue.id')
-
-# Add as sub-issue
-gh api graphql -f query='
-mutation($parentId: ID!, $childId: ID!) {
-  addSubIssue(input: {issueId: $parentId, subIssueId: $childId}) {
-    issue { number }
-    subIssue { number }
-  }
-}' -f parentId="$PARENT_ID" -f childId="$CHILD_ID"
-```
+After creating child issues, link them to the parent using the "Mutation: Add Sub-Issue" pattern from `.claude/skills/github-issues/SKILL.md`.
 
 #### 3d. Add Dependencies
 
-For tasks that depend on other tasks:
+For tasks that depend on other tasks, use the "REST: Add Blocked-By Dependency" pattern from `.claude/skills/github-issues/SKILL.md`.
 
-```bash
-# Get the node ID of the blocking issue
-BLOCKER_ID=$(gh api graphql -f query='
-query($owner: String!, $repo: String!, $num: Int!) {
-  repository(owner: $owner, name: $repo) {
-    issue(number: $num) { id }
-  }
-}' -f owner=OWNER -f repo=REPO -F num=BLOCKER_NUM --jq '.data.repository.issue.id')
-
-# Add blocked-by relationship (BLOCKED_NUM is blocked by BLOCKER_NUM)
-gh api repos/OWNER/REPO/issues/BLOCKED_NUM/dependencies/blocked_by \
-  -X POST \
-  -f blocked_by_issue_id="$BLOCKER_ID"
-```
-
-**Each subtask MUST be self-contained** (per AGENTS.md rules):
+**Each subtask MUST be self-contained:**
 - **Summary**: What and why in 1-2 sentences
 - **Files to modify**: Exact paths (with line numbers if relevant)
 - **Implementation steps**: Numbered, specific actions

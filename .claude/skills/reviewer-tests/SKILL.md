@@ -96,7 +96,8 @@ gh issue create \
 EOF
 )"
 
-# Add as sub-issue of parent (see AGENTS.md for GraphQL commands)
+# Add as sub-issue of parent + add blocking relationship if blocking
+# See .claude/skills/github-issues/SKILL.md for GraphQL patterns
 ```
 
 ## Report Your Outcome

@@ -26,27 +26,9 @@ The planner will provide:
 ```bash
 # Get the epic
 gh issue view N --json number,title,body,labels
-
-# Get sub-issues
-gh api graphql -f query='
-query($owner: String!, $repo: String!, $number: Int!) {
-  repository(owner: $owner, name: $repo) {
-    issue(number: $number) {
-      subIssues(first: 50) {
-        nodes {
-          number
-          title
-          body
-          state
-          blockedBy(first: 10) {
-            nodes { number title }
-          }
-        }
-      }
-    }
-  }
-}' -f owner=OWNER -f repo=REPO -F number=N
 ```
+
+Get sub-issues using the "Query: Sub-Issues with Blocking Status" pattern from `.claude/skills/github-issues/SKILL.md`.
 
 Read every subtask description in full. Understand the overall goal and how tasks connect.
 

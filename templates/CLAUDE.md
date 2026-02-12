@@ -9,8 +9,6 @@ This project uses [agent-workflow](https://github.com/jdelfino/agent-workflow) f
 | `/plan <description>` | Explore codebase, discuss tradeoffs, file GitHub Issues |
 | `/work #N` | Implement, fix, or orchestrate children |
 
-See [AGENTS.md](AGENTS.md) for full workflow documentation.
-
 ## Project Overview
 
 <!-- TODO: Describe your project here -->

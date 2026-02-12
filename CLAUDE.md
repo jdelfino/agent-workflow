@@ -8,14 +8,22 @@ Agent-workflow: a reusable framework that gives any GitHub project a production-
 
 ```
 agent-workflow/
-├── workflow/                     # Files copied by the installer into target projects
-│   ├── .claude/
-│   │   ├── skills/               # Agent skill prompts (7 skills)
-│   │   └── commands/             # Slash commands (/plan, /work)
-│   ├── .github/
-│   │   ├── workflows/            # GitHub Actions (review, orchestrator, guardrails)
-│   │   ├── agent-workflow/       # Workflow configuration
-│   │   └── ISSUE_TEMPLATE/       # Issue templates for tasks and review findings
+├── .claude/
+│   ├── skills/                   # Agent skill prompts (8 skills)
+│   │   ├── coordinator/          # /work entry point
+│   │   ├── planner/              # /plan entry point
+│   │   ├── implementer/          # Test-first development (subagent)
+│   │   ├── github-issues/        # GitHub API reference for sub-issues/deps
+│   │   ├── reviewer-correctness/ # Bugs, security, error handling
+│   │   ├── reviewer-tests/       # Test quality and coverage
+│   │   ├── reviewer-architecture/# Duplication, patterns
+│   │   └── reviewer-plan/        # Plan validation
+│   └── commands/                 # Slash commands (/plan, /work)
+├── .github/
+│   ├── workflows/                # GitHub Actions (review, orchestrator, guardrails)
+│   ├── agent-workflow/           # Workflow configuration
+│   └── ISSUE_TEMPLATE/           # Issue templates for tasks and review findings
+├── templates/
 │   └── CLAUDE.md                 # Starter CLAUDE.md for target projects
 ├── install.sh                    # curl-able installer
 ├── setup.sh                      # Branch protection setup via gh api
