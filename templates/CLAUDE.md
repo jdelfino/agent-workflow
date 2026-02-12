@@ -1,9 +1,10 @@
 # CLAUDE.md
 
 <!-- TODO: Replace this file's placeholder content with your project's details. -->
-<!-- Sections marked with TODO need your input. Pre-populated sections describe -->
-<!-- the agent-workflow conventions and should be kept as-is unless you've -->
-<!-- customized the workflow. -->
+<!-- Sections marked with TODO need your input. Sections between              -->
+<!-- "auto-generated" markers are populated by /configure and can be refreshed -->
+<!-- at any time. Pre-populated workflow sections should be kept as-is unless  -->
+<!-- you've customized the workflow.                                           -->
 
 ## Project Overview
 
@@ -11,31 +12,30 @@
 
 ## Repository Structure
 
-<!-- TODO: List the key directories and files an agent needs to know about. -->
-<!-- Example:
-```
-src/
-├── api/          # REST API routes
-├── models/       # Database models
-├── services/     # Business logic
-└── utils/        # Shared helpers
-tests/
-├── unit/
-└── integration/
-```
--->
+<!-- auto-generated -->
+<!-- Run /configure to populate this from your codebase, or fill in manually. -->
+<!-- end auto-generated -->
 
 ## Commands
 
-<!-- TODO: List your project's key commands, e.g.:
-npm install / pip install -e . / go mod download
-npm test / pytest / go test ./...
-npm run lint / ruff check . / golangci-lint run
--->
+<!-- auto-generated -->
+<!-- Run /configure to populate this from your codebase, or fill in manually. -->
+<!-- end auto-generated -->
 
-## Quality Gates
+## Git Hooks
 
-Quality gates are enforced automatically via pre-commit hooks and CI. See `.pre-commit-config.yaml` and `.github/workflows/` for the configured checks.
+Pre-commit hooks enforce quality gates on every commit. These commands must be fast (<30s). Slow suites belong in CI, not the hook.
+
+<!-- auto-generated -->
+<!-- Run /configure to detect your project's tooling and populate these. -->
+
+| Hook | Command | Description |
+|------|---------|-------------|
+| Compile | | e.g. `tsc --noEmit`, `go build ./...` — leave blank if no compile step |
+| Fast tests | | e.g. `npm test -- --bail`, `pytest -x -q` — unit tests only |
+| Lint | | e.g. `npm run lint`, `ruff check .` |
+
+<!-- end auto-generated -->
 
 ## Testing
 
