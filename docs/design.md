@@ -162,15 +162,19 @@ Each child issue is scoped to be completable in a single agent session with fres
 
 #### Implementation Skill
 
-Triggered by `/work #N` from a Claude Code terminal. The skill is recursive:
+Triggered by `/work #N` from a Claude Code terminal. The skill is recursive and handles initial implementation, fixes, and rebasing:
 
 1. Find #N's parent issue (if any) to determine the base branch
-2. Create branch `feat/{N}-{slug}` off the base branch (parent's branch, or main if no parent)
-3. Open PR targeting the base branch with `fixes #N` in the description
-4. **If #N is a leaf issue (no children):** spawn implementer subagents for the actual work
-5. **If #N has children:** spawn `/work #child` for each unblocked child issue (recursive)
+2. **If branch doesn't exist:** create `feat/{N}-{slug}` off the base branch, open PR targeting base with `fixes #N`
+3. **If branch exists:** check out the existing branch
+4. **If branch is behind its base:** rebase onto base, resolve conflicts if possible (stop and ask human if not)
+5. Find all open, unblocked children of #N (tasks, review findings, or human-filed issues for guardrail fixes)
+6. **If #N is a leaf issue (no children):** spawn implementer subagents for the actual work
+7. **If #N has unblocked children:** spawn `/work #child` for each (recursive)
+8. **If no unblocked children remain:** work is complete, push any commits (including rebase)
+9. Push commits to the branch
 
-The recursion bottoms out at leaf issues, where implementation actually happens. Working on an epic spawns orchestrators for its features, which spawn orchestrators for sub-features, which eventually hit leaves and spawn implementers.
+The recursion bottoms out at leaf issues, where implementation actually happens. There's no distinction between "initial work," "fixing review feedback," or "rebasing" — `/work` handles whatever the issue needs.
 
 One issue, one branch, one PR. The branch hierarchy mirrors the issue hierarchy.
 
@@ -183,10 +187,6 @@ Three specialized reviewers, each a separate skill:
 - **Architecture reviewer** — duplication, pattern consistency, separation of concerns, unnecessary complexity
 
 Each reviewer creates child issues under the PR's linked issue (parsed from `fixes #N`) with severity labels: `blocking`, `should-fix`, or `suggestion`. Critical findings are set as blocking that issue using GitHub's native dependency API.
-
-#### Fix Skill
-
-Triggered by `/cleanup #N` from a Claude Code terminal. Works through blocking issues filed by reviewers, pushes fixes to the PR branch, closes issues as they're resolved. Same coordinator/subagent pattern as implementation.
 
 ### Layer 3: Orchestration (GitHub Actions)
 
@@ -235,7 +235,7 @@ Checks attach **annotations** to specific files and lines in the PR diff, so fin
 
 1. Human sees guardrail failure in checks tab (with annotations pointing to specific issues)
 2. Human decides: fix or accept?
-3. **If fix:** Human files an issue as a child of the PR's parent issue, describing what to fix. `/cleanup #N` picks it up like any other blocking child.
+3. **If fix:** Human files an issue as a child of the PR's parent issue, describing what to fix. `/work #N` picks it up like any other child.
 4. **If accept:** Human submits approving PR review (with comment explaining why the violations are acceptable). Guardrails re-run, see non-stale approval, report `success`.
 
 This keeps guardrails simple (detect and report only) while ensuring all fix work is tracked as issues and human overrides use the native PR review mechanism.
@@ -344,7 +344,7 @@ Human escalation uses native GitHub mechanisms: PR reviews and check run conclus
 **When humans get involved:**
 
 1. **Guardrail failures.** Human sees `action_required` check with annotations. Decides to fix (files issue) or accept (approves PR).
-2. **Reviewer findings.** Human sees blocking child issues. `/cleanup` addresses them, or human intervenes.
+2. **Reviewer findings.** Human sees blocking child issues. `/work` addresses them, or human intervenes.
 3. **Re-review cap exceeded.** Orchestrator reports `action_required` after too many review cycles.
 4. **Agent self-escalation.** Agent can request human review by leaving a PR comment (human then decides whether to approve or provide guidance).
 
@@ -363,7 +363,7 @@ New commits stale the approval. All checks re-run and will block again until eit
 |-----------|-------------|--------------|
 | Clean PR, no issues | Nothing | Auto-merge |
 | Guardrail violations | `action_required` check | Fix (file issue) or approve |
-| Blocking reviewer findings | Orchestrator check | `/cleanup` or approve |
+| Blocking reviewer findings | Orchestrator check | `/work` or approve |
 | Re-review cap exceeded | Orchestrator check | Review and approve |
 
 ## Workflow: End to End
@@ -415,10 +415,10 @@ Guardrail checks run in parallel with review, each as an independent check run. 
 ### 5. Fixes (Human + Claude Code terminal)
 
 ```
-human> /cleanup #20
+human> /work #20
 ```
 
-Fix skill works through blocking issues #26 and #27. Pushes commits to `feat/20-rate-limiting`. Closes both issues.
+Since the branch and PR already exist, `/work` picks up where it left off. It finds blocking children #26 and #27, works through them, pushes commits to `feat/20-rate-limiting`, and closes both issues.
 
 ### 6. Re-evaluation (GitHub Actions)
 
@@ -466,12 +466,10 @@ agent-workflow-template/
 │   │   ├── implementer.md             # Implementation agent
 │   │   ├── reviewer-correctness.md    # Correctness review skill
 │   │   ├── reviewer-tests.md          # Test quality review skill
-│   │   ├── reviewer-architecture.md   # Architecture review skill
-│   │   └── cleanup.md                 # Fix/cleanup skill
+│   │   └── reviewer-architecture.md   # Architecture review skill
 │   └── commands/
 │       ├── plan.md                    # /plan command
-│       ├── work.md                    # /work command
-│       └── cleanup.md                 # /cleanup command
+│       └── work.md                    # /work command
 ├── CLAUDE.md                          # Starter project context (fill in per project)
 ├── setup.sh                           # Configures branch protection via gh api
 └── README.md
@@ -484,14 +482,14 @@ agent-workflow-template/
 - PR review workflow invoking three reviewer skills via `claude -p`
 - Guardrail checks as independent workflow files using native GitHub check runs (scope, test ratio, dependency changes, API surface, commit messages)
 - Human escalation via `action_required` check conclusion + PR approval as override
-- Planning, implementation, and cleanup skills (adapted from devcontainer-template)
+- Planning and implementation skills (adapted from devcontainer-template)
 - Issue templates for tasks and review findings
 - Starter CLAUDE.md and workflow configuration
 - README explaining the philosophy and setup
 
 ## What's v2
 
-- **Autonomous fix agents in Actions.** Fix agents running on the Actions runner directly, with a dev environment set up in the workflow. Removes the manual `/cleanup` step for well-defined fixes.
+- **Autonomous fix agents in Actions.** Fix agents running on the Actions runner directly, with a dev environment set up in the workflow. When review findings are filed, an Action automatically invokes `/work` to address them without human intervention.
 - **Autonomous planning trigger.** File a GitHub issue to kick off planning without a terminal. Human reviews the plan (approve/reject the issue decomposition) before work begins.
 - **Autonomous task dispatch.** When an issue becomes unblocked (no open blockers), an Action automatically invokes `/work` via `claude -p`. The full pipeline runs without human intervention for straightforward tasks. (Requires GitHub to add filtering by dependency status, or a custom query workflow.)
 - **Expanded check library.** Community-contributed guardrail checks for specific frameworks, languages, and domains. Each check is just a GitHub Actions workflow file that reports a check run — no framework to learn. Django migration checks, TypeScript type export checks, security-focused checks for regulated industries, etc.
