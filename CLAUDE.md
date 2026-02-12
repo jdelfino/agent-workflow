@@ -18,15 +18,14 @@ agent-workflow/
 │   │   ├── reviewer-tests/       # Test quality and coverage
 │   │   ├── reviewer-architecture/# Duplication, patterns
 │   │   └── reviewer-plan/        # Plan validation
-│   └── commands/                 # Slash commands (/plan, /work)
+│   └── commands/                 # Slash commands (/plan, /work, /configure)
 ├── .github/
 │   ├── workflows/                # GitHub Actions (review, orchestrator, guardrails)
 │   ├── agent-workflow/           # Workflow configuration
 │   └── ISSUE_TEMPLATE/           # Issue templates for tasks and review findings
 ├── templates/
 │   └── CLAUDE.md                 # Starter CLAUDE.md for target projects
-├── install.sh                    # curl-able installer
-├── setup.sh                      # Branch protection setup via gh api
+├── install.sh                    # curl-able installer (copies files only)
 ├── docs/
 │   └── design.md                 # Full design document
 └── README.md
@@ -38,7 +37,7 @@ agent-workflow/
 - **Hierarchical branching** — branch structure mirrors issue structure
 - **Leaf tasks commit to parent branch** (no sub-branch per leaf)
 - **PR approval as universal override** for guardrail checks
-- **Two commands only:** `/plan` and `/work`
+- **Three commands:** `/plan`, `/work`, and `/configure`
 
 ## Design Reference
 

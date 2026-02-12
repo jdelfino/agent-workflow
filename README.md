@@ -23,11 +23,14 @@ The solution isn't better instructions — it's **structural enforcement**. A de
 ## Quick Start
 
 ```bash
-# Install into your project
+# Install workflow files into your project
 curl -fsSL https://raw.githubusercontent.com/jdelfino/agent-workflow/main/install.sh | bash
+```
 
-# Configure branch protection and required checks
-./setup.sh
+Then in a Claude Code terminal:
+```
+# Interactive setup: branch protection, git hooks, Claude auth, guardrails
+/configure
 ```
 
 ## How It Works
@@ -111,7 +114,7 @@ guardrails:
 - GitHub repository
 - [Claude Code](https://claude.ai/code) CLI installed
 - `gh` CLI authenticated with repo access
-- `ANTHROPIC_API_KEY` as a GitHub Secret (for automated reviews)
+- Run `/configure` to set up Claude authentication and branch protection
 
 ## License
 
