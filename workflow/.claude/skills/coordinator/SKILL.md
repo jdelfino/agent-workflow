@@ -1,12 +1,16 @@
 ---
 name: coordinator
-description: Recursive /work #N entry point. Creates branches, implements leaf issues, orchestrates non-leaf issues, handles review findings. Invoked via /work.
+description: Single entry point for /work #N. Creates branch off main for parent issues, implements leaf issues on parent's branch, orchestrates children. Invoked via /work.
 user_invocable: true
 ---
 
 # Coordinator
 
-You are the work coordinator. `/work #N` is the single entry point for all implementation. You either implement the work directly (for leaf issues) or orchestrate children (for non-leaf issues).
+You are the work coordinator. `/work #N` is the single entry point for all implementation. You either implement the work directly (for leaf issues) or orchestrate children (for parent issues).
+
+**Two-level model:**
+- **Parent issue** (has children) → branch off main, PR to main
+- **Leaf issue** (no children) → commits on parent's branch
 
 ## Invocation
 
@@ -15,7 +19,9 @@ You are the work coordinator. `/work #N` is the single entry point for all imple
 - If given an issue number: fetch and work on that issue
 - If given a description: create an issue first, then work on it
 
-## Phase 1: Fetch Issue & Determine Context
+---
+
+## Phase 1: Fetch Issue & Determine Type
 
 ### 1a. Fetch the Issue
 
@@ -26,7 +32,6 @@ gh issue view N --json number,title,body,labels,state
 ### 1b. Check for Children
 
 ```bash
-# Query for sub-issues
 gh api graphql -f query='
 query($owner: String!, $repo: String!, $number: Int!) {
   repository(owner: $owner, name: $repo) {
@@ -45,10 +50,10 @@ query($owner: String!, $repo: String!, $number: Int!) {
 }' -f owner=OWNER -f repo=REPO -F number=N
 ```
 
-**Leaf issue** = no children (subIssues is empty)
-**Non-leaf issue** = has children
+- **Leaf issue** = no children (subIssues empty)
+- **Parent issue** = has children
 
-### 1c. Find Parent Issue
+### 1c. Find Parent (for leaf issues)
 
 ```bash
 gh api graphql -f query='
@@ -64,41 +69,37 @@ query($owner: String!, $repo: String!, $number: Int!) {
 }' -f owner=OWNER -f repo=REPO -F number=N
 ```
 
-**Base branch**:
-- Has parent P → `feat/{P}-{slug}`
-- No parent → `main`
-
 ---
 
 ## Phase 2: Branch Setup
 
-### For Leaf Issues
+### For Parent Issues
 
-Leaf issues commit directly to their parent's branch. Do NOT create a sub-branch.
-
-```bash
-# Check out parent's branch (or main if no parent)
-git fetch origin
-git checkout <base-branch>
-git pull --rebase origin <base-branch>
-```
-
-### For Non-Leaf Issues
-
-Non-leaf issues get their own branch and PR.
+Parent issues get their own branch and PR, always off main.
 
 ```bash
+git fetch origin main
+
 # Check if branch exists
-git fetch origin
 if git show-ref --verify --quiet refs/remotes/origin/feat/N-slug; then
-  # Branch exists — check out and rebase
   git checkout feat/N-slug
-  git pull --rebase origin <base-branch>
+  git pull --rebase origin main
 else
-  # Create new branch
-  git checkout -b feat/N-slug <base-branch>
+  git checkout -b feat/N-slug origin/main
 fi
 ```
+
+### For Leaf Issues
+
+Leaf issues work on their parent's branch. Do NOT create a sub-branch.
+
+```bash
+git fetch origin
+git checkout feat/<parent-number>-<slug>
+git pull --rebase origin main
+```
+
+If the leaf has no parent, it's a standalone task — create a branch off main.
 
 ---
 
@@ -120,70 +121,37 @@ Description:
 CONSTRAINTS:
 - Work in the current branch
 - Do NOT create new branches
-- Do NOT manage issues (that's my job)
-- Commit and push when done
-- Report outcome:
-
-IMPLEMENTATION RESULT: SUCCESS
-Task: #N
-Commit: <full commit hash>
-Summary: <1-2 sentences>
-
-Or on failure:
-
-IMPLEMENTATION RESULT: FAILURE
-Task: #N
-Error: <what went wrong>
-Details: <explanation>
+- Do NOT manage issues
+- Report outcome when done
 ```
 
 **On SUCCESS:**
-- Close the issue: `gh issue close N --reason completed`
-- Continue with next ready child (if any)
+1. Commit and push the changes
+2. Update the parent's PR to include `Fixes #N`:
+   ```bash
+   # Get current PR body
+   BODY=$(gh pr view --json body -q .body)
+   # Append Fixes #N if not already present
+   gh pr edit --body "$BODY
+
+   Fixes #N"
+   ```
+3. Continue with next ready child (if orchestrating)
 
 **On FAILURE:**
 - Keep issue open
 - Report the failure to the user
 
-### For Non-Leaf Issues — Orchestrate Children
+### For Parent Issues — Orchestrate Children
 
-1. **Find ready children** (open, not blocked):
-
-```bash
-# From Phase 1 query results, filter:
-# - state == OPEN
-# - blockedBy.totalCount == 0
-```
-
-2. **For each ready child**, spawn a `/work #child` subagent:
-
-```
-ROLE: Coordinator
-SKILL: Read and follow .claude/skills/coordinator/SKILL.md
-
-WORK: #<child-number>
-```
-
-3. **Handle subagent results:**
-   - SUCCESS: child is handled, check for newly unblocked children
-   - FAILURE: report to user, continue with other ready children
-
-4. **Repeat** until no ready children remain.
-
----
-
-## Phase 4: PR Management (Non-Leaf Only)
-
-After all ready children are complete, create or update the PR.
-
-### Create PR (if none exists)
+1. **Create PR first** (if none exists):
 
 ```bash
 git push -u origin feat/N-slug
 
 gh pr create \
   --title "<type>: <title>" \
-  --base <base-branch> \
+  --base main \
   --body "$(cat <<'EOF'
 ## Summary
 <1-3 bullet points>
@@ -200,41 +168,32 @@ EOF
 )"
 ```
 
-The `Fixes #N` link connects the PR to the issue.
-
-### If PR Already Exists
-
-Just push new commits:
+2. **Find ready children** (open, not blocked):
 
 ```bash
-git push origin feat/N-slug
+# From Phase 1 query results, filter:
+# - state == OPEN
+# - blockedBy.totalCount == 0
 ```
+
+3. **For each ready child**, implement it:
+   - Check out the parent's branch
+   - Spawn implementer subagent for the child task
+   - On success: commit, push, add `Fixes #<child>` to PR
+   - Check for newly unblocked children
+
+4. **Repeat** until no ready children remain.
 
 ---
 
-## Phase 5: Check for Blocking Children
+## Phase 4: Handle Review Findings
 
-Before considering work complete, check if there are blocking review findings:
+When `/work #N` is run on a parent that already has a PR with review findings:
 
-```bash
-# From Phase 1 query, check for children with 'blocking' label that are OPEN
-```
-
-If blocking children exist:
-- They are ready work (review findings don't have dependencies)
-- Spawn `/work #child` for each blocking child
-- After all are resolved, push and report
-
----
-
-## Handling Review Findings
-
-When `/work #N` is run and #N already has a PR with review findings (blocking children):
-
-1. The blocking children show up as open sub-issues with `blocking` label
-2. They have no dependencies (ready work)
-3. Spawn implementers to fix each one
-4. Close findings as they're fixed
+1. Review findings appear as open sub-issues with `blocking` label
+2. They have no dependencies (always ready work)
+3. Implement fixes for each blocking child
+4. Add `Fixes #<finding>` to PR as each is resolved
 5. Push to trigger re-review
 
 There is no separate `/cleanup` command. `/work` handles both initial implementation and fixing review findings.
@@ -264,14 +223,15 @@ WORK COMPLETE: #N
 Type: Leaf implementation
 Commit: <hash>
 Summary: <what was done>
+PR updated: Added Fixes #N
 ```
 
-### On Success (Non-Leaf)
+### On Success (Parent)
 
 ```
 WORK COMPLETE: #N
-Type: Orchestration
-PR: #<pr-number> (or "created" / "updated")
+Type: Parent orchestration
+PR: #<pr-number>
 Children completed: #A, #B, #C
 Children remaining: #D, #E (blocked by ...)
 ```
@@ -298,8 +258,8 @@ Details: <explanation>
 ## Your Constraints
 
 - **MAY** use `gh` CLI for issue and PR operations
-- **MAY** spawn implementer and coordinator subagents
-- **NEVER** implement non-leaf issues directly — always orchestrate
-- **ALWAYS** check out the correct branch before starting
+- **MAY** spawn implementer subagents
+- **NEVER** manually close issues — they close on PR merge via `Fixes #N`
+- **NEVER** create nested branches — parent branches off main, leaves commit to parent
 - **ALWAYS** run quality gates before pushing
-- **ALWAYS** rebase before starting work
+- **ALWAYS** add `Fixes #N` to PR when completing a task

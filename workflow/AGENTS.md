@@ -60,33 +60,30 @@ Use GitHub's native `blocked-by`/`blocking` relationships for task ordering:
 - Task #22 blocked by #21 means #22 can't start until #21 is done
 - A `blocking` review finding blocks the parent issue's PR from merging
 
-## Hierarchical Branching
+## Branching Model
 
-Branch structure mirrors issue structure. Each non-leaf issue gets its own branch and PR.
+Simple two-level model: parent issues get a branch, leaf issues commit to it.
 
 ```
 Issues:                                    Branches:
 ──────────────────────────────────────────────────────────────
-#10 Epic: "API overhaul"                   feat/10-api-overhaul (off main)
- │                                          │
- ├── #20 Feature: "Add rate limiting"       ├── feat/20-rate-limiting (off feat/10)
- │    ├── #21 Task: "Add middleware"        │    (commits on feat/20)
- │    └── #22 Task: "Add configuration"     │    (commits on feat/20)
- │                                          │
- └── #30 Feature: "Add authentication"      └── feat/30-authentication (off feat/10)
-      └── #31 Task: "Add JWT validation"         (commits on feat/30)
+#20 Parent: "Add rate limiting"            feat/20-add-rate-limiting (off main)
+ ├── #21 Task: "Add middleware"             (commits on feat/20)
+ ├── #22 Task: "Add configuration"          (commits on feat/20)
+ └── #23 Task: "Add headers"                (commits on feat/20)
 ```
 
 **Key rules:**
-- **Non-leaf issues** (issues with children) get their own branch: `feat/{N}-{slug}`
-- **Leaf issues** (no children) commit directly to their parent's branch
-- PRs target the parent's branch (or `main` if no parent)
-- PR description includes `fixes #N` to link the issue
+- **Parent issues** (have children) → branch `feat/{N}-{slug}` off main, PR to main
+- **Leaf issues** (no children) → commit directly to parent's branch
+- PR description accumulates `Fixes #N` for each completed task
+- All issues close atomically when PR merges
 
-**Merge flow (bottom-up):**
-1. Leaf task commits land on parent branch
-2. Child PRs pass checks → merge into parent branch
-3. When all children merge → parent PR passes checks → merges into its parent (or main)
+**Workflow:**
+1. `/work #20` creates branch and PR with `Fixes #20`
+2. Each leaf task (#21, #22, #23) is implemented on the branch
+3. As each completes, `Fixes #21`, `Fixes #22`, etc. are added to PR
+4. When PR merges to main, all listed issues close
 
 ## Issue Structure Requirements
 
@@ -132,7 +129,7 @@ Every session must complete these steps before ending:
 
 1. **File issues** for any discovered or remaining work
 2. **Run quality gates** (if code changed)
-3. **Update issue status** via `gh` CLI
+3. **Update PR** — add `Fixes #N` for each completed task
 4. **Push to remote** — this is mandatory:
    ```bash
    git pull --rebase
@@ -142,6 +139,8 @@ Every session must complete these steps before ending:
 5. **Clean up** — clear stashes, verify all changes committed
 
 Work is NOT complete until `git push` succeeds.
+
+**Do NOT manually close issues.** Issues close automatically when the PR merges via `Fixes #N`.
 
 ---
 
