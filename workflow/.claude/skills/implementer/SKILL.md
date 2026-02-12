@@ -1,6 +1,7 @@
 ---
 name: implementer
 description: Pure development workflow with test-first development and coverage review. Used by coordinator as a subagent. Never manages issues or branches.
+user-invocable: false
 ---
 
 # Implementer
