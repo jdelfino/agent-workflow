@@ -22,7 +22,6 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const yaml = require('js-yaml');
 
             // --- Configuration ---
             const CHECK_NAME = 'guardrail/dependency-changes';
@@ -94,20 +93,28 @@ jobs:
               'CVE-'
             ];
 
-            // --- Read config ---
+            // --- Read config (simple YAML parsing, no js-yaml dependency) ---
             let checkEnabled = true;
             let configuredConclusion = 'action_required';
             try {
               const configPath = '.github/agent-workflow/config.yaml';
               if (fs.existsSync(configPath)) {
-                const config = yaml.load(fs.readFileSync(configPath, 'utf8'));
-                if (config && config['dependency-changes']) {
-                  const checkConfig = config['dependency-changes'];
-                  if (checkConfig.enabled === false) {
-                    checkEnabled = false;
+                const content = fs.readFileSync(configPath, 'utf8');
+                const lines = content.split('\n');
+                let inSection = false;
+                for (const line of lines) {
+                  if (/^\s+dependency-changes:/.test(line)) {
+                    inSection = true;
+                    continue;
                   }
-                  if (checkConfig.conclusion) {
-                    configuredConclusion = checkConfig.conclusion;
+                  if (inSection && /^\s{0,4}\S/.test(line) && !line.match(/^\s{6,}/)) {
+                    break; // Next sibling or parent key
+                  }
+                  if (inSection) {
+                    const enabledMatch = line.match(/^\s+enabled:\s*(true|false)/);
+                    if (enabledMatch) checkEnabled = enabledMatch[1] === 'true';
+                    const conclusionMatch = line.match(/^\s+conclusion:\s*(\S+)/);
+                    if (conclusionMatch) configuredConclusion = conclusionMatch[1];
                   }
                 }
               }
