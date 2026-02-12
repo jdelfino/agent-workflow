@@ -3,7 +3,7 @@ Tests for .github/workflows/pr-review.yml
 
 Validates the workflow structure, trigger configuration, permissions,
 parallel reviewer jobs, and the expected prompt construction for each
-reviewer skill invoked via `claude -p`.
+reviewer skill invoked via anthropics/claude-code-action.
 """
 
 import yaml
@@ -130,10 +130,10 @@ class TestPermissions:
         wf = load_workflow()
         return wf.get("permissions", {})
 
-    def test_has_contents_write(self):
+    def test_has_contents_read(self):
         perms = self._get_permissions()
-        assert perms.get("contents") == "write", (
-            "Needs contents:write to check out repo"
+        assert perms.get("contents") in ("read", "write"), (
+            "Needs contents:read to check out repo"
         )
 
     def test_has_issues_write(self):
@@ -142,10 +142,10 @@ class TestPermissions:
             "Needs issues:write to create child issues for findings"
         )
 
-    def test_has_pull_requests_read(self):
+    def test_has_pull_requests_write(self):
         perms = self._get_permissions()
-        assert perms.get("pull-requests") == "read", (
-            "Needs pull-requests:read to read PR diff and description"
+        assert perms.get("pull-requests") == "write", (
+            "Needs pull-requests:write for claude-code-action to post review comments"
         )
 
 
@@ -275,7 +275,7 @@ class TestParseParentIssue:
 
 
 class TestReviewerJobSteps:
-    """Each reviewer job must: checkout repo, then run claude -p with appropriate skill."""
+    """Each reviewer job must: checkout repo, then invoke claude-code-action with appropriate skill."""
 
     def _get_reviewer_jobs(self):
         wf = load_workflow()
@@ -288,14 +288,19 @@ class TestReviewerJobSteps:
         }
 
     def _get_all_steps_content(self, job):
-        """Get all step run/script content for a job."""
+        """Get all step run/script/prompt/uses content for a job."""
         parts = []
         for step in job.get("steps", []):
             if "run" in step:
                 parts.append(step["run"])
-            if step.get("uses", "").startswith("actions/github-script"):
-                script = step.get("with", {}).get("script", "")
-                parts.append(script)
+            uses = step.get("uses", "")
+            if uses:
+                parts.append(uses)
+            with_block = step.get("with", {})
+            if "script" in with_block:
+                parts.append(with_block["script"])
+            if "prompt" in with_block:
+                parts.append(with_block["prompt"])
         return "\n".join(parts)
 
     def test_each_reviewer_checks_out_repo(self):
@@ -311,14 +316,17 @@ class TestReviewerJobSteps:
                 f"Reviewer job '{job_name}' must have a checkout step"
             )
 
-    def test_each_reviewer_runs_claude_p(self):
-        """Each reviewer job must run `claude -p` (or `claude --print`)."""
+    def test_each_reviewer_uses_claude_code_action(self):
+        """Each reviewer job must use anthropics/claude-code-action."""
         reviewer_jobs = self._get_reviewer_jobs()
         for job_name, job in reviewer_jobs.items():
-            content = self._get_all_steps_content(job)
-            has_claude = "claude" in content.lower()
-            assert has_claude, (
-                f"Reviewer job '{job_name}' must invoke claude"
+            steps = job.get("steps", [])
+            has_action = any(
+                "anthropics/claude-code-action" in s.get("uses", "")
+                for s in steps
+            )
+            assert has_action, (
+                f"Reviewer job '{job_name}' must use anthropics/claude-code-action"
             )
 
     def test_correctness_reviewer_references_skill(self):
@@ -371,7 +379,7 @@ class TestContextPassing:
     """Each reviewer must receive PR number, parent issue number, and repo info."""
 
     def _get_all_content(self):
-        """Get all run/script/env content from all jobs."""
+        """Get all run/script/prompt/env content from all jobs."""
         wf = load_workflow()
         parts = []
         for job_name, job in wf.get("jobs", {}).items():
@@ -382,8 +390,11 @@ class TestContextPassing:
             for step in job.get("steps", []):
                 if "run" in step:
                     parts.append(step["run"])
-                if step.get("uses", "").startswith("actions/github-script"):
-                    parts.append(step.get("with", {}).get("script", ""))
+                with_block = step.get("with", {})
+                if "script" in with_block:
+                    parts.append(with_block["script"])
+                if "prompt" in with_block:
+                    parts.append(with_block["prompt"])
                 for v in step.get("env", {}).values():
                     if isinstance(v, str):
                         parts.append(v)
@@ -430,7 +441,7 @@ class TestContextPassing:
 
 
 class TestReviewerPromptContent:
-    """The prompt passed to claude -p must instruct the reviewer correctly."""
+    """The prompt passed to claude-code-action must instruct the reviewer correctly."""
 
     def _get_all_content(self):
         wf = load_workflow()
@@ -442,65 +453,44 @@ class TestReviewerPromptContent:
             for step in job.get("steps", []):
                 if "run" in step:
                     parts.append(step["run"])
-                if step.get("uses", "").startswith("actions/github-script"):
-                    parts.append(step.get("with", {}).get("script", ""))
+                with_block = step.get("with", {})
+                if "script" in with_block:
+                    parts.append(with_block["script"])
+                if "prompt" in with_block:
+                    parts.append(with_block["prompt"])
                 for v in step.get("env", {}).values():
                     if isinstance(v, str):
                         parts.append(v)
         return "\n".join(parts)
 
-    def test_prompt_instructs_reading_pr_diff(self):
+    def test_prompt_references_skill_files(self):
         content = self._get_all_content()
-        assert "diff" in content.lower(), (
-            "Reviewer prompt must instruct reading the PR diff"
+        assert "reviewer-correctness/SKILL.md" in content, (
+            "Prompt must reference the correctness reviewer skill file"
+        )
+        assert "reviewer-tests/SKILL.md" in content, (
+            "Prompt must reference the tests reviewer skill file"
+        )
+        assert "reviewer-architecture/SKILL.md" in content, (
+            "Prompt must reference the architecture reviewer skill file"
         )
 
-    def test_prompt_instructs_creating_issues(self):
+    def test_prompt_references_github_issues_skill(self):
         content = self._get_all_content()
-        has_issue_create = (
-            "gh issue create" in content
-            or "issue" in content.lower()
-        )
-        assert has_issue_create, (
-            "Reviewer prompt must instruct creating child issues for findings"
+        assert "github-issues/SKILL.md" in content, (
+            "Prompt must reference the github-issues skill for GraphQL patterns"
         )
 
-    def test_prompt_includes_severity_labels(self):
+    def test_prompt_passes_parent_issue_for_filing(self):
         content = self._get_all_content()
-        assert "blocking" in content, (
-            "Prompt must mention 'blocking' severity label"
-        )
-        assert "should-fix" in content, (
-            "Prompt must mention 'should-fix' severity label"
-        )
-        assert "suggestion" in content, (
-            "Prompt must mention 'suggestion' severity label"
+        assert "sub-issue" in content.lower() or "finding" in content.lower(), (
+            "Prompt must instruct filing findings against the parent issue"
         )
 
-    def test_prompt_instructs_sub_issue_linking(self):
+    def test_prompt_passes_base_branch(self):
         content = self._get_all_content()
-        has_sub_issue = (
-            "sub-issue" in content.lower()
-            or "sub_issue" in content.lower()
-            or "subissue" in content.lower()
-            or "addSubIssue" in content
-            or "child" in content.lower()
-        )
-        assert has_sub_issue, (
-            "Prompt must instruct linking findings as sub-issues of parent"
-        )
-
-    def test_prompt_instructs_blocking_dependency(self):
-        content = self._get_all_content()
-        has_blocking = (
-            "blocking" in content.lower()
-            and ("dependency" in content.lower()
-                 or "blocked_by" in content.lower()
-                 or "blocked-by" in content.lower()
-                 or "block" in content.lower())
-        )
-        assert has_blocking, (
-            "Prompt must instruct setting blocking dependencies for blocking findings"
+        assert "base" in content.lower() and "branch" in content.lower(), (
+            "Prompt must pass the base branch for diffing"
         )
 
 
@@ -508,7 +498,7 @@ class TestReviewerPromptContent:
 
 
 class TestSecrets:
-    """Workflow must use ANTHROPIC_API_KEY secret for claude -p."""
+    """Workflow must use ANTHROPIC_API_KEY secret for claude-code-action."""
 
     def _get_all_content(self):
         wf = load_workflow()

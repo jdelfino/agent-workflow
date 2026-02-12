@@ -11,9 +11,9 @@ name: PR Review
         type: number
 
 permissions:
-  contents: write
+  contents: read
   issues: write
-  pull-requests: read
+  pull-requests: write
 
 jobs:
   # ── Resolve context shared by all reviewers ──────────────────────────
@@ -71,43 +71,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Claude Code
-        run: npm install -g @anthropic-ai/claude-code
-
       - name: Run correctness review
+        uses: anthropics/claude-code-action@v1
+        with:
+          prompt: |
+            Read and follow .claude/skills/reviewer-correctness/SKILL.md
+
+            Context:
+            - Base branch: origin/${{ needs.resolve-context.outputs.base-branch }}
+            - Parent issue: #${{ needs.resolve-context.outputs.parent-issue }}
+
+            File findings as sub-issues of #${{ needs.resolve-context.outputs.parent-issue }}.
+            See .claude/skills/github-issues/SKILL.md for the GraphQL patterns.
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          PR_NUMBER: ${{ needs.resolve-context.outputs.pr-number }}
-          PARENT_ISSUE: ${{ needs.resolve-context.outputs.parent-issue }}
-          BASE_BRANCH: ${{ needs.resolve-context.outputs.base-branch }}
-          PR_TITLE: ${{ needs.resolve-context.outputs.pr-title }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          claude -p "$(cat <<'PROMPT'
-          You are the Correctness Reviewer. Read and follow the skill file at
-          .claude/skills/reviewer-correctness/SKILL.md
-
-          ## Context
-          - Repository: ${{ github.repository }}
-          - PR number: ${PR_NUMBER}
-          - PR title: ${PR_TITLE}
-          - Parent issue number: ${PARENT_ISSUE}
-          - Base branch: origin/${BASE_BRANCH}
-
-          ## Instructions
-          1. Run `git diff origin/${BASE_BRANCH}...HEAD` to get the full diff
-          2. Review every changed file for bugs, error handling gaps, security issues, and API contract mismatches
-          3. For each finding, create a child issue using `gh issue create`:
-             - Use labels: `blocking`, `should-fix`, or `suggestion`
-             - Include file path and line number in the issue body
-          4. Link each created issue as a sub-issue of #${PARENT_ISSUE} using the GraphQL API:
-             - Get parent node ID and child node ID
-             - Use the addSubIssue mutation (see .claude/skills/github-issues/SKILL.md)
-          5. For `blocking` findings, set them as blocking #${PARENT_ISSUE} using the
-             blocked-by dependency REST API (see .claude/skills/github-issues/SKILL.md)
-          6. Report your outcome in the structured format from the skill file
-          PROMPT
-          )"
 
   # ── Tests Reviewer ───────────────────────────────────────────────────
   review-tests:
@@ -120,45 +97,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Claude Code
-        run: npm install -g @anthropic-ai/claude-code
-
       - name: Run tests review
+        uses: anthropics/claude-code-action@v1
+        with:
+          prompt: |
+            Read and follow .claude/skills/reviewer-tests/SKILL.md
+
+            Context:
+            - Base branch: origin/${{ needs.resolve-context.outputs.base-branch }}
+            - Parent issue: #${{ needs.resolve-context.outputs.parent-issue }}
+
+            File findings as sub-issues of #${{ needs.resolve-context.outputs.parent-issue }}.
+            See .claude/skills/github-issues/SKILL.md for the GraphQL patterns.
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          PR_NUMBER: ${{ needs.resolve-context.outputs.pr-number }}
-          PARENT_ISSUE: ${{ needs.resolve-context.outputs.parent-issue }}
-          BASE_BRANCH: ${{ needs.resolve-context.outputs.base-branch }}
-          PR_TITLE: ${{ needs.resolve-context.outputs.pr-title }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          claude -p "$(cat <<'PROMPT'
-          You are the Test Quality Reviewer. Read and follow the skill file at
-          .claude/skills/reviewer-tests/SKILL.md
-
-          ## Context
-          - Repository: ${{ github.repository }}
-          - PR number: ${PR_NUMBER}
-          - PR title: ${PR_TITLE}
-          - Parent issue number: ${PARENT_ISSUE}
-          - Base branch: origin/${BASE_BRANCH}
-
-          ## Instructions
-          1. Run `git diff origin/${BASE_BRANCH}...HEAD --stat` to identify changed files
-          2. For every changed production file, find its corresponding test file
-          3. Read each test file and evaluate: meaningful assertions, mock vs real behavior,
-             integration test coverage, edge cases, and test organization
-          4. For each finding, create a child issue using `gh issue create`:
-             - Use labels: `blocking`, `should-fix`, or `suggestion`
-             - Include file path and description of what is missing or wrong
-          5. Link each created issue as a sub-issue of #${PARENT_ISSUE} using the GraphQL API:
-             - Get parent node ID and child node ID
-             - Use the addSubIssue mutation (see .claude/skills/github-issues/SKILL.md)
-          6. For `blocking` findings, set them as blocking #${PARENT_ISSUE} using the
-             blocked-by dependency REST API (see .claude/skills/github-issues/SKILL.md)
-          7. Report your outcome in the structured format from the skill file
-          PROMPT
-          )"
 
   # ── Architecture Reviewer ────────────────────────────────────────────
   review-architecture:
@@ -171,43 +123,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Claude Code
-        run: npm install -g @anthropic-ai/claude-code
-
       - name: Run architecture review
+        uses: anthropics/claude-code-action@v1
+        with:
+          prompt: |
+            Read and follow .claude/skills/reviewer-architecture/SKILL.md
+
+            Context:
+            - Base branch: origin/${{ needs.resolve-context.outputs.base-branch }}
+            - Parent issue: #${{ needs.resolve-context.outputs.parent-issue }}
+
+            File findings as sub-issues of #${{ needs.resolve-context.outputs.parent-issue }}.
+            See .claude/skills/github-issues/SKILL.md for the GraphQL patterns.
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          PR_NUMBER: ${{ needs.resolve-context.outputs.pr-number }}
-          PARENT_ISSUE: ${{ needs.resolve-context.outputs.parent-issue }}
-          BASE_BRANCH: ${{ needs.resolve-context.outputs.base-branch }}
-          PR_TITLE: ${{ needs.resolve-context.outputs.pr-title }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          claude -p "$(cat <<'PROMPT'
-          You are the Architecture Reviewer. Read and follow the skill file at
-          .claude/skills/reviewer-architecture/SKILL.md
-
-          ## Context
-          - Repository: ${{ github.repository }}
-          - PR number: ${PR_NUMBER}
-          - PR title: ${PR_TITLE}
-          - Parent issue number: ${PARENT_ISSUE}
-          - Base branch: origin/${BASE_BRANCH}
-
-          ## Instructions
-          1. Run `git diff origin/${BASE_BRANCH}...HEAD --stat` to understand what changed
-          2. Read the full codebase context — not just the diff — to catch duplication,
-             pattern divergence, and structural issues
-          3. Check for: duplicated types, copy-pasted logic, pattern inconsistency,
-             leaky abstractions, unnecessary coupling, missing shared code
-          4. For each finding, create a child issue using `gh issue create`:
-             - Use labels: `blocking`, `should-fix`, or `suggestion`
-             - Include file paths and reference to existing patterns
-          5. Link each created issue as a sub-issue of #${PARENT_ISSUE} using the GraphQL API:
-             - Get parent node ID and child node ID
-             - Use the addSubIssue mutation (see .claude/skills/github-issues/SKILL.md)
-          6. For `blocking` findings, set them as blocking #${PARENT_ISSUE} using the
-             blocked-by dependency REST API (see .claude/skills/github-issues/SKILL.md)
-          7. Report your outcome in the structured format from the skill file
-          PROMPT
-          )"
