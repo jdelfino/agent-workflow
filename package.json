@@ -1,0 +1,12 @@
+{
+  "name": "agent-workflow-scripts",
+  "version": "1.0.0",
+  "description": "Shared libraries for GitHub Actions workflows",
+  "type": "commonjs",
+  "scripts": {
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "js-yaml": "^4.1.0"
+  }
+}
