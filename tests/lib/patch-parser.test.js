@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { parseLineNumbers } = require('./patch-parser.js');
+const { parseLineNumbers } = require('../../.github/agent-workflow/scripts/lib/patch-parser.js');
 
 test('parseLineNumbers - simple addition', () => {
   const patch = `

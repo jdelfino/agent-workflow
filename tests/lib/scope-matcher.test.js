@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { extractFilePaths, isInScope } = require('./scope-matcher.js');
+const { extractFilePaths, isInScope } = require('../../.github/agent-workflow/scripts/lib/scope-matcher.js');
 
 test('extractFilePaths - backtick-wrapped paths', () => {
   const text = 'Modify `src/index.js` and `lib/utils.ts`';

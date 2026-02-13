@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { parseGuardrailConfig } = require('./config.js');
+const { parseGuardrailConfig } = require('../../.github/agent-workflow/scripts/lib/config.js');
 
 test('parseGuardrailConfig - parses enabled and conclusion', () => {
   const yaml = `

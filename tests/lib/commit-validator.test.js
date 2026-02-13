@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { isValidCommit } = require('./commit-validator.js');
+const { isValidCommit } = require('../../.github/agent-workflow/scripts/lib/commit-validator.js');
 
 test('isValidCommit - valid conventional commits', () => {
   assert.strictEqual(isValidCommit('feat: add new feature'), true);

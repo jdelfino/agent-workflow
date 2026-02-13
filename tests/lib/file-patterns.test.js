@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { isTestFile, isCodeFile, isDependencyFile } = require('./file-patterns.js');
+const { isTestFile, isCodeFile, isDependencyFile } = require('../../.github/agent-workflow/scripts/lib/file-patterns.js');
 
 test('isTestFile - recognizes test files', () => {
   assert.strictEqual(isTestFile('src/foo.test.js'), true);

@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { replaceSection } = require('./pr-body.js');
+const { replaceSection } = require('../../.github/agent-workflow/scripts/lib/pr-body.js');
 
 test('replaceSection - adds new section to empty body', () => {
   const result = replaceSection('', '## Fixes', 'Fixes #123');
