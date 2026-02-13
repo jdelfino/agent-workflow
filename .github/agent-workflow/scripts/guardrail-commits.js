@@ -1,40 +1,8 @@
-const { parseGuardrailConfig } = require('./lib/config.js');
 const { hasNonStaleApproval } = require('./lib/approval.js');
 const { isValidCommit } = require('./lib/commit-validator.js');
 
 module.exports = async function({ github, context, core }) {
-  const fs = require('fs');
-  const path = require('path');
-
-  // Read config - default conclusion for commit message guardrail is 'neutral' (non-blocking warning)
-  let configuredConclusion = 'neutral';
-  const configPath = path.join(process.env.GITHUB_WORKSPACE, '.github', 'agent-workflow', 'config.yaml');
-
-  try {
-    const configContent = fs.readFileSync(configPath, 'utf8');
-    const config = parseGuardrailConfig(configContent, 'commit-messages');
-
-    if (config.enabled === false) {
-      await github.rest.checks.create({
-        owner: context.repo.owner,
-        repo: context.repo.repo,
-        head_sha: context.sha,
-        name: 'guardrail/commit-messages',
-        conclusion: 'success',
-        output: {
-          title: 'Commit message check: disabled',
-          summary: 'This guardrail check is disabled in config.yaml.'
-        }
-      });
-      return;
-    }
-
-    if (config.conclusion) {
-      configuredConclusion = config.conclusion;
-    }
-  } catch (e) {
-    core.info(`No config.yaml found at ${configPath}, using default conclusion: neutral`);
-  }
+  const configuredConclusion = process.env.CONCLUSION || 'neutral';
 
   // Check for non-stale PR approval override
   const reviews = await github.rest.pulls.listReviews({
@@ -52,7 +20,7 @@ module.exports = async function({ github, context, core }) {
       repo: context.repo.repo,
       head_sha: context.sha,
       name: 'guardrail/commit-messages',
-      conclusion: 'success',
+      conclusion: 'neutral',
       output: {
         title: 'Commit message check: approved by reviewer',
         summary: 'A non-stale PR approval overrides this guardrail check.'

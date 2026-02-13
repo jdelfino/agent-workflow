@@ -1,10 +1,10 @@
-const { parseGuardrailConfig } = require('./lib/config.js');
 const { hasNonStaleApproval } = require('./lib/approval.js');
 const { parseFixesReferences } = require('./lib/fixes-parser.js');
 const { extractFilePaths, isInScope } = require('./lib/scope-matcher.js');
 
 module.exports = async function({ github, context, core }) {
   const checkName = 'guardrail/scope';
+  const configuredConclusion = process.env.CONCLUSION || 'action_required';
 
   // Helper: create check run
   async function createCheckRun(conclusion, title, summary, annotations = []) {
@@ -23,31 +23,7 @@ module.exports = async function({ github, context, core }) {
     });
   }
 
-  // Step 1: Read config and check if enabled
-  let config;
-  try {
-    const { data } = await github.rest.repos.getContent({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      path: '.github/agent-workflow/config.yaml',
-      ref: context.payload.pull_request.head.sha
-    });
-    const content = Buffer.from(data.content, 'base64').toString('utf-8');
-    config = parseGuardrailConfig(content, 'scope-enforcement');
-  } catch (e) {
-    config = { enabled: true, conclusion: 'action_required' };
-  }
-
-  if (!config.enabled) {
-    await createCheckRun(
-      'success',
-      'Scope enforcement: disabled',
-      'Scope enforcement is disabled in agent-workflow config.'
-    );
-    return;
-  }
-
-  // Step 2: Check for non-stale PR approval override
+  // Step 1: Check for non-stale PR approval override
   const reviews = await github.rest.pulls.listReviews({
     owner: context.repo.owner,
     repo: context.repo.repo,
@@ -160,7 +136,7 @@ module.exports = async function({ github, context, core }) {
   // There are out-of-scope files
   if (hasValidApproval) {
     await createCheckRun(
-      'success',
+      'neutral',
       `Scope enforcement: approved by reviewer (${outOfScope.length} files outside scope)`,
       `PR modifies ${outOfScope.length} file(s) not listed in issue #${issueNumber} or its children, but a non-stale approval exists.\n\nOut-of-scope files:\n${outOfScope.map(f => '- `' + f.filename + '`').join('\n')}`
     );
@@ -178,7 +154,7 @@ module.exports = async function({ github, context, core }) {
 
   // Determine conclusion based on config and severity
   const isMinor = outOfScope.length <= 2;
-  const conclusion = isMinor ? 'neutral' : config.conclusion;
+  const conclusion = isMinor ? 'neutral' : configuredConclusion;
 
   const summary = [
     `PR modifies ${outOfScope.length} file(s) not listed in issue #${issueNumber} or its children.`,

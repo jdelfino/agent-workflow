@@ -10,6 +10,9 @@ permissions:
   pull-requests: read
   issues: read
 
+env:
+  CONCLUSION: action_required  # action_required | neutral
+
 jobs:
   dependency-changes:
     runs-on: ubuntu-latest

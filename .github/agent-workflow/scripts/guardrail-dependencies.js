@@ -1,10 +1,9 @@
-const { parseGuardrailConfig } = require('./lib/config.js');
 const { hasNonStaleApproval } = require('./lib/approval.js');
 const { isDependencyFile } = require('./lib/file-patterns.js');
 
 module.exports = async function({ github, context, core }) {
-  const fs = require('fs');
   const CHECK_NAME = 'guardrail/dependency-changes';
+  const configuredConclusion = process.env.CONCLUSION || 'action_required';
 
   const JUSTIFICATION_KEYWORDS = [
     'dependency', 'dependencies',
@@ -20,38 +19,6 @@ module.exports = async function({ github, context, core }) {
     'security fix', 'security patch', 'vulnerability',
     'CVE-'
   ];
-
-  // Read config
-  let checkEnabled = true;
-  let configuredConclusion = 'action_required';
-  try {
-    const configPath = '.github/agent-workflow/config.yaml';
-    if (fs.existsSync(configPath)) {
-      const content = fs.readFileSync(configPath, 'utf8');
-      const config = parseGuardrailConfig(content, 'dependency-changes');
-      checkEnabled = config.enabled;
-      configuredConclusion = config.conclusion;
-    }
-  } catch (e) {
-    core.warning(`Failed to read config: ${e.message}. Using defaults.`);
-  }
-
-  // If check is disabled, report success and exit
-  if (!checkEnabled) {
-    await github.rest.checks.create({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      head_sha: context.sha,
-      name: CHECK_NAME,
-      status: 'completed',
-      conclusion: 'success',
-      output: {
-        title: 'Dependency changes: check disabled',
-        summary: 'This guardrail check is disabled in config.yaml.'
-      }
-    });
-    return;
-  }
 
   // Check for non-stale approving PR review (override mechanism)
   const { data: reviews } = await github.rest.pulls.listReviews({
@@ -70,7 +37,7 @@ module.exports = async function({ github, context, core }) {
       head_sha: context.sha,
       name: CHECK_NAME,
       status: 'completed',
-      conclusion: 'success',
+      conclusion: 'neutral',
       output: {
         title: 'Dependency changes: approved by reviewer',
         summary: 'A non-stale PR approval overrides dependency change violations.'

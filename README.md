@@ -82,29 +82,24 @@ See [docs/design.md](docs/design.md) for the full design document.
 
 ## Configuration
 
-After installation, configure guardrails in `.github/agent-workflow/config.yaml`:
+Each guardrail is a standalone workflow file in `.github/workflows/`. Configure by editing the `env:` block at the top of each workflow:
 
 ```yaml
-re-review-cycle-cap: 3
+# guardrail-scope.yml
+env:
+  CONCLUSION: action_required  # action_required | neutral
 
-guardrails:
-  scope-enforcement:
-    enabled: true
-    conclusion: action_required
-  test-ratio:
-    enabled: true
-    conclusion: action_required
-    threshold: 0.5
-  dependency-changes:
-    enabled: true
-    conclusion: action_required
-  api-surface:
-    enabled: true
-    conclusion: action_required
-  commit-messages:
-    enabled: true
-    conclusion: neutral  # warning only
+# guardrail-test-ratio.yml
+env:
+  CONCLUSION: action_required
+  THRESHOLD: "0.5"             # minimum test-to-code line ratio
+
+# orchestrator-check.yml
+env:
+  RE_REVIEW_CYCLE_CAP: "3"     # max re-review cycles before auto-passing
 ```
+
+To disable a guardrail, delete its workflow file.
 
 ## Requirements
 

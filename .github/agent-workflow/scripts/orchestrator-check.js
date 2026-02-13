@@ -3,21 +3,9 @@ const { parseFixesReferences } = require('./lib/fixes-parser.js');
 module.exports = async function({ github, context, core }) {
   const checkName = 'orchestrator';
 
-  // Helper: read re-review-cycle-cap from config
-  async function readCycleCap() {
-    try {
-      const { data } = await github.rest.repos.getContent({
-        owner: context.repo.owner,
-        repo: context.repo.repo,
-        path: '.github/agent-workflow/config.yaml',
-        ref: context.sha
-      });
-      const content = Buffer.from(data.content, 'base64').toString('utf-8');
-      const match = content.match(/^re-review-cycle-cap:\s*(\d+)/m);
-      return match ? parseInt(match[1], 10) : 3;
-    } catch {
-      return 3; // default
-    }
+  // Read re-review cycle cap from workflow env
+  function readCycleCap() {
+    return parseInt(process.env.RE_REVIEW_CYCLE_CAP, 10) || 3;
   }
 
   // Helper: create check run on a specific SHA
@@ -234,7 +222,7 @@ module.exports = async function({ github, context, core }) {
   // Step 4: No blockers — assess re-review need
   console.log('No open blockers. Assessing re-review need...');
 
-  const cycleCap = await readCycleCap();
+  const cycleCap = readCycleCap();
   const pastCycles = await countReviewCycles(prNumber);
   console.log(`Review cycles so far: ${pastCycles}, cap: ${cycleCap}`);
 

@@ -13,6 +13,9 @@ permissions:
   contents: read
   actions: write
 
+env:
+  RE_REVIEW_CYCLE_CAP: "3"  # max re-review cycles before auto-passing
+
 jobs:
   orchestrator:
     runs-on: ubuntu-latest
