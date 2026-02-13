@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { extractFilePaths, isInScope } = require('../../.github/agent-workflow/scripts/lib/scope-matcher.js');
+const { extractFilePaths, isInScope, globToRegex } = require('../../.github/agent-workflow/scripts/lib/scope-matcher.js');
 
 test('extractFilePaths - backtick-wrapped paths', () => {
   const text = 'Modify `src/index.js` and `lib/utils.ts`';
@@ -54,4 +54,50 @@ test('isInScope - prefix without trailing slash', () => {
   const scopeFiles = ['src/auth'];
   assert.strictEqual(isInScope('src/auth/handler.js', scopeFiles), true);
   assert.strictEqual(isInScope('src/auth.ts', scopeFiles), false);
+});
+
+test('extractFilePaths - glob patterns', () => {
+  const text = 'Files: `lib/*.js` and `.github/agent-workflow/scripts/lib/*.test.js`';
+  const paths = extractFilePaths(text);
+  assert.ok(paths.includes('lib/*.js'));
+  assert.ok(paths.includes('.github/agent-workflow/scripts/lib/*.test.js'));
+});
+
+test('globToRegex - single wildcard', () => {
+  const regex = globToRegex('lib/*.js');
+  assert.strictEqual(regex.test('lib/utils.js'), true);
+  assert.strictEqual(regex.test('lib/helper.js'), true);
+  assert.strictEqual(regex.test('lib/sub/utils.js'), false); // * doesn't match /
+  assert.strictEqual(regex.test('other/utils.js'), false);
+});
+
+test('globToRegex - double wildcard', () => {
+  const regex = globToRegex('lib/**/*.js');
+  assert.strictEqual(regex.test('lib/utils.js'), true);
+  assert.strictEqual(regex.test('lib/sub/utils.js'), true);
+  assert.strictEqual(regex.test('lib/sub/deep/utils.js'), true);
+  assert.strictEqual(regex.test('other/utils.js'), false);
+});
+
+test('globToRegex - wildcard in filename', () => {
+  const regex = globToRegex('lib/*.test.js');
+  assert.strictEqual(regex.test('lib/utils.test.js'), true);
+  assert.strictEqual(regex.test('lib/helper.test.js'), true);
+  assert.strictEqual(regex.test('lib/utils.js'), false);
+});
+
+test('isInScope - glob pattern matching', () => {
+  const scopeFiles = ['lib/*.js', '.github/workflows/*.yml'];
+  assert.strictEqual(isInScope('lib/utils.js', scopeFiles), true);
+  assert.strictEqual(isInScope('lib/helper.js', scopeFiles), true);
+  assert.strictEqual(isInScope('.github/workflows/ci.yml', scopeFiles), true);
+  assert.strictEqual(isInScope('lib/sub/utils.js', scopeFiles), false);
+  assert.strictEqual(isInScope('other/file.js', scopeFiles), false);
+});
+
+test('isInScope - double wildcard pattern', () => {
+  const scopeFiles = ['.github/agent-workflow/**/*.js'];
+  assert.strictEqual(isInScope('.github/agent-workflow/scripts/lib/config.js', scopeFiles), true);
+  assert.strictEqual(isInScope('.github/agent-workflow/scripts/main.js', scopeFiles), true);
+  assert.strictEqual(isInScope('.github/workflows/ci.yml', scopeFiles), false);
 });
