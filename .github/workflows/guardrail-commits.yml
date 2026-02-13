@@ -18,10 +18,120 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for commitlint
 
-      - name: Check commit messages
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install commitlint
+        run: |
+          npm install -g @commitlint/cli @commitlint/config-conventional
+
+      - name: Validate commit messages
+        id: commitlint
+        continue-on-error: true
+        run: |
+          set +e  # Don't exit on error
+
+          # Get PR commits
+          BASE_SHA=${{ github.event.pull_request.base.sha }}
+          HEAD_SHA=${{ github.event.pull_request.head.sha }}
+
+          # Run commitlint and capture output
+          OUTPUT=$(commitlint --from ${BASE_SHA} --to ${HEAD_SHA} --config .github/agent-workflow/commitlint.config.js 2>&1)
+          EXIT_CODE=$?
+
+          # Save results for next step
+          echo "exit_code=${EXIT_CODE}" >> $GITHUB_OUTPUT
+
+          # Save output (escape for multiline)
+          {
+            echo "output<<EOF"
+            echo "$OUTPUT"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+          exit ${EXIT_CODE}
+
+      - name: Report results
+        if: always()
         uses: actions/github-script@v7
         with:
           script: |
-            const run = require('./.github/agent-workflow/scripts/guardrail-commits.js');
-            await run({ github, context, core });
+            const { hasNonStaleApproval } = require('./.github/agent-workflow/scripts/lib/approval.js');
+            const configuredConclusion = process.env.CONCLUSION || 'neutral';
+
+            // Check for non-stale PR approval override
+            const reviews = await github.rest.pulls.listReviews({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number
+            });
+
+            const headSha = context.payload.pull_request.head.sha;
+            const hasValidApproval = hasNonStaleApproval(reviews.data, headSha);
+
+            if (hasValidApproval) {
+              await github.rest.checks.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                head_sha: context.sha,
+                name: 'guardrail/commit-messages',
+                conclusion: 'neutral',
+                output: {
+                  title: 'Commit message check: approved by reviewer',
+                  summary: 'A non-stale PR approval overrides this guardrail check.'
+                }
+              });
+              return;
+            }
+
+            // Get commitlint results
+            const exitCode = parseInt('${{ steps.commitlint.outputs.exit_code }}');
+            const output = `${{ steps.commitlint.outputs.output }}`;
+
+            if (exitCode === 0) {
+              await github.rest.checks.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                head_sha: context.sha,
+                name: 'guardrail/commit-messages',
+                conclusion: 'success',
+                output: {
+                  title: 'Commit message check: all commits conform',
+                  summary: 'All commits follow conventional commit format (validated by commitlint).'
+                }
+              });
+              return;
+            }
+
+            // Build failure summary
+            let summary = '## Validation failed\n\n';
+            summary += 'Commit messages do not conform to conventional commit format.\n\n';
+            summary += '### commitlint output:\n\n';
+            summary += '```\n';
+            summary += output;
+            summary += '\n```\n\n';
+            summary += '## Expected format\n\n';
+            summary += '```\n';
+            summary += 'type(optional-scope): description\n';
+            summary += '```\n\n';
+            summary += 'Valid types: `feat`, `fix`, `chore`, `docs`, `test`, `refactor`, `ci`, `style`, `perf`, `build`, `revert`\n\n';
+            summary += 'See: https://www.conventionalcommits.org/\n\n';
+            summary += `**Configured conclusion:** \`${configuredConclusion}\`\n\n`;
+            summary += 'To override: submit an approving PR review. The approval must be on the current head commit to be non-stale.\n';
+
+            await github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head_sha: context.sha,
+              name: 'guardrail/commit-messages',
+              conclusion: configuredConclusion,
+              output: {
+                title: 'Commit message check: validation failed',
+                summary: summary
+              }
+            });
