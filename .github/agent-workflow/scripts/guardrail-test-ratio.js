@@ -46,7 +46,7 @@ module.exports = async function({ github, context, core }) {
 
   for (const file of allFiles) {
     if (file.status === 'removed') continue;
-    if (!isCodeFile(file.filename)) continue;
+    if (!isCodeFile(file.filename) && !isTestFile(file.filename)) continue;
 
     const additions = file.additions || 0;
 
