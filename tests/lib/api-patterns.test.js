@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { detectAPIChanges } = require('./api-patterns.js');
+const { detectAPIChanges } = require('../../.github/agent-workflow/scripts/lib/api-patterns.js');
 
 test('detectAPIChanges - JavaScript export changes', () => {
   const diff = `

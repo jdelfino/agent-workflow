@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { parseFixesReferences } = require('./fixes-parser.js');
+const { parseFixesReferences } = require('../../.github/agent-workflow/scripts/lib/fixes-parser.js');
 
 test('parseFixesReferences - single fixes reference', () => {
   const body = 'This PR fixes #123';

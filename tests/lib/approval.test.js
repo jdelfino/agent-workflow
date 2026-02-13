@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { hasNonStaleApproval } = require('./approval.js');
+const { hasNonStaleApproval } = require('../../.github/agent-workflow/scripts/lib/approval.js');
 
 test('hasNonStaleApproval - approved at head SHA', () => {
   const reviews = [

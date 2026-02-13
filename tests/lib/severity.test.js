@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { detectSeverity } = require('./severity.js');
+const { detectSeverity } = require('../../.github/agent-workflow/scripts/lib/severity.js');
 
 test('detectSeverity - blocking keywords', () => {
   assert.strictEqual(detectSeverity('This is blocking the release'), 'blocking');
