@@ -26,6 +26,11 @@ jobs:
       base-branch: ${{ steps.ctx.outputs.base-branch }}
       pr-title: ${{ steps.ctx.outputs.pr-title }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/agent-workflow
+
       - name: Resolve PR context
         id: ctx
         uses: actions/github-script@v7
