@@ -1,26 +1,9 @@
-const { parseGuardrailConfig } = require('./lib/config.js');
 const { hasNonStaleApproval } = require('./lib/approval.js');
 const { isTestFile, isCodeFile } = require('./lib/file-patterns.js');
 
 module.exports = async function({ github, context, core }) {
-  // Load configuration
-  const fs = require('fs');
-  const configPath = '.github/agent-workflow/config.yaml';
-  let config = { enabled: true, conclusion: 'action_required', threshold: 0.5 };
-
-  try {
-    const content = fs.readFileSync(configPath, 'utf8');
-    config = { ...config, ...parseGuardrailConfig(content, 'test-ratio') };
-  } catch (e) {
-    core.info(`Could not read config from ${configPath}, using defaults: ${e.message}`);
-  }
-
-  if (!config.enabled) {
-    core.info('Test-ratio guardrail is disabled in config. Skipping.');
-    return;
-  }
-
-  const threshold = config.threshold || 0.5;
+  const configuredConclusion = process.env.CONCLUSION || 'action_required';
+  const threshold = parseFloat(process.env.THRESHOLD) || 0.5;
 
   // Get PR files
   const prNumber = context.payload.pull_request.number;
@@ -108,11 +91,11 @@ module.exports = async function({ github, context, core }) {
     title = `Test-to-code ratio: ${ratio.toFixed(2)} (threshold: ${threshold})`;
     summary = `PR has ${testLines} test lines and ${implLines} implementation lines added. Ratio ${ratio.toFixed(2)} meets the threshold of ${threshold}.`;
   } else if (hasValidApproval) {
-    conclusion = 'success';
+    conclusion = 'neutral';
     title = `Test-to-code ratio: ${ratio.toFixed(2)} — approved by reviewer`;
     summary = `PR has ${testLines} test lines and ${implLines} implementation lines added. Ratio ${ratio.toFixed(2)} is below the threshold of ${threshold}, but a non-stale approval exists. Human has accepted the current state.`;
   } else {
-    conclusion = config.conclusion;
+    conclusion = configuredConclusion;
     title = `Test-to-code ratio: ${ratio.toFixed(2)} (threshold: ${threshold})`;
     summary = `PR has ${testLines} test lines and ${implLines} implementation lines added. Ratio ${ratio.toFixed(2)} is below the threshold of ${threshold}. Add more tests or approve the PR to override.`;
   }

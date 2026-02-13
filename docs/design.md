@@ -454,7 +454,7 @@ agent-workflow-template/
 │   │   ├── guardrail-api-surface.yml  # API surface change detection (native check run)
 │   │   └── guardrail-commits.yml      # Commit message structure (native check run)
 │   ├── agent-workflow/
-│   │   └── config.yaml                # Workflow configuration (re-review cap, check thresholds, etc.)
+│   │   └── scripts/                   # Guardrail and orchestrator scripts (used by workflows)
 │   └── ISSUE_TEMPLATE/
 │       ├── task.yml                    # Structured task template for agent consumption
 │       └── review-finding.yml         # Template for reviewer-created issues

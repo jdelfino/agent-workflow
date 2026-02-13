@@ -9,6 +9,10 @@ permissions:
   pull-requests: read
   contents: read
 
+env:
+  CONCLUSION: action_required  # action_required | neutral
+  THRESHOLD: "0.5"             # minimum test-to-code line ratio
+
 jobs:
   test-ratio-check:
     runs-on: ubuntu-latest

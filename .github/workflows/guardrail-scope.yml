@@ -10,6 +10,9 @@ permissions:
   pull-requests: read
   contents: read
 
+env:
+  CONCLUSION: action_required  # action_required | neutral
+
 jobs:
   scope-check:
     runs-on: ubuntu-latest

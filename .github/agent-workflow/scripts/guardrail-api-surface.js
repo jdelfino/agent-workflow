@@ -1,4 +1,3 @@
-const { parseGuardrailConfig } = require('./lib/config.js');
 const { hasNonStaleApproval } = require('./lib/approval.js');
 const { detectAPIChanges } = require('./lib/api-patterns.js');
 
@@ -8,40 +7,7 @@ module.exports = async function({ github, context, core }) {
   const prNumber = context.payload.pull_request.number;
   const headSha = context.payload.pull_request.head.sha;
   const checkName = 'guardrail/api-surface';
-
-  // Read config
-  let enabled = true;
-  let configuredConclusion = 'action_required';
-  try {
-    const configResponse = await github.rest.repos.getContent({
-      owner,
-      repo,
-      path: '.github/agent-workflow/config.yaml',
-      ref: headSha,
-    });
-    const configContent = Buffer.from(configResponse.data.content, 'base64').toString('utf8');
-    const config = parseGuardrailConfig(configContent, 'api-surface');
-    enabled = config.enabled;
-    configuredConclusion = config.conclusion;
-  } catch (e) {
-    core.info('No config.yaml found, using defaults (enabled: true, conclusion: action_required)');
-  }
-
-  if (!enabled) {
-    await github.rest.checks.create({
-      owner,
-      repo,
-      head_sha: headSha,
-      name: checkName,
-      status: 'completed',
-      conclusion: 'success',
-      output: {
-        title: 'API surface check: disabled',
-        summary: 'This check is disabled in config.yaml.',
-      },
-    });
-    return;
-  }
+  const configuredConclusion = process.env.CONCLUSION || 'action_required';
 
   // Check for non-stale PR approval override
   const reviews = await github.rest.pulls.listReviews({
@@ -58,7 +24,7 @@ module.exports = async function({ github, context, core }) {
       head_sha: headSha,
       name: checkName,
       status: 'completed',
-      conclusion: 'success',
+      conclusion: 'neutral',
       output: {
         title: 'API surface check: approved by reviewer',
         summary: 'A non-stale PR approval overrides this guardrail.',

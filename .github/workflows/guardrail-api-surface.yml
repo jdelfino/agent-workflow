@@ -9,6 +9,9 @@ permissions:
   pull-requests: read
   contents: read
 
+env:
+  CONCLUSION: action_required  # action_required | neutral
+
 jobs:
   api-surface-check:
     runs-on: ubuntu-latest
