@@ -5,21 +5,6 @@ module.exports = async function({ github, context, core }) {
   const CHECK_NAME = 'guardrail/dependency-changes';
   const configuredConclusion = process.env.CONCLUSION || 'action_required';
 
-  const JUSTIFICATION_KEYWORDS = [
-    'dependency', 'dependencies',
-    'added', 'adding',
-    'requires', 'required',
-    'needed for', 'needed by',
-    'introduced',
-    'new package', 'new library', 'new module',
-    'upgrade', 'upgraded', 'upgrading',
-    'update', 'updated', 'updating',
-    'migration', 'migrate', 'migrating',
-    'replace', 'replaced', 'replacing',
-    'security fix', 'security patch', 'vulnerability',
-    'CVE-'
-  ];
-
   // Check for non-stale approving PR review (override mechanism)
   const { data: reviews } = await github.rest.pulls.listReviews({
     owner: context.repo.owner,
@@ -40,7 +25,7 @@ module.exports = async function({ github, context, core }) {
       conclusion: 'neutral',
       output: {
         title: 'Dependency changes: approved by reviewer',
-        summary: 'A non-stale PR approval overrides dependency change violations.'
+        summary: 'A non-stale PR approval overrides this guardrail check.'
       }
     });
     return;
@@ -76,77 +61,27 @@ module.exports = async function({ github, context, core }) {
     return;
   }
 
-  // Dependency files changed: check for justification
-  const prBody = (context.payload.pull_request.body || '').toLowerCase();
-
-  function hasJustification(text) {
-    const lowerText = text.toLowerCase();
-    return JUSTIFICATION_KEYWORDS.some(keyword => lowerText.includes(keyword));
-  }
-
-  let justified = hasJustification(prBody);
-
-  // If not justified in PR body, check linked issue body
-  if (!justified) {
-    const issueMatch = (context.payload.pull_request.body || '').match(
-      /(?:fixes|closes|resolves)\s+#(\d+)/i
-    );
-    if (issueMatch) {
-      try {
-        const { data: issue } = await github.rest.issues.get({
-          owner: context.repo.owner,
-          repo: context.repo.repo,
-          issue_number: parseInt(issueMatch[1], 10)
-        });
-        if (issue.body) {
-          justified = hasJustification(issue.body);
-        }
-      } catch (e) {
-        core.warning(`Failed to fetch linked issue #${issueMatch[1]}: ${e.message}`);
-      }
-    }
-  }
-
-  // Build annotations for changed dependency files
+  // Dependency files changed: requires human review
+  const fileList = changedDependencyFiles.map(f => '- `' + f.filename + '`').join('\n');
   const annotations = changedDependencyFiles.map(f => ({
     path: f.filename,
     start_line: 1,
     end_line: 1,
     annotation_level: 'warning',
-    message: justified
-      ? `Dependency file changed. Justification found in PR or linked issue.`
-      : `Dependency file changed without justification. Add context about why dependencies were changed to the PR description or linked issue.`
+    message: 'Dependency file modified. Human review required before merge.'
   }));
 
-  // Report result
-  if (justified) {
-    await github.rest.checks.create({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      head_sha: context.sha,
-      name: CHECK_NAME,
-      status: 'completed',
-      conclusion: 'success',
-      output: {
-        title: `Dependency changes: ${changedDependencyFiles.length} file(s) changed with justification`,
-        summary: `Dependency files were modified and justification was found in the PR body or linked issue.\n\n**Changed dependency files:**\n${changedDependencyFiles.map(f => '- `' + f.filename + '`').join('\n')}`,
-        annotations: annotations
-      }
-    });
-  } else {
-    const fileList = changedDependencyFiles.map(f => '- `' + f.filename + '`').join('\n');
-    await github.rest.checks.create({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      head_sha: context.sha,
-      name: CHECK_NAME,
-      status: 'completed',
-      conclusion: configuredConclusion,
-      output: {
-        title: `Dependency changes: ${changedDependencyFiles.length} file(s) changed without justification`,
-        summary: `Dependency files were modified but no justification was found.\n\n**Changed dependency files:**\n${fileList}\n\n**To resolve:** Add context about dependency changes to the PR description using keywords like: ${JUSTIFICATION_KEYWORDS.slice(0, 8).map(k => '"' + k + '"').join(', ')}, etc.\n\nAlternatively, a PR approval will override this check.`,
-        annotations: annotations
-      }
-    });
-  }
+  await github.rest.checks.create({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    head_sha: context.sha,
+    name: CHECK_NAME,
+    status: 'completed',
+    conclusion: configuredConclusion,
+    output: {
+      title: `Dependency changes: ${changedDependencyFiles.length} file(s) modified`,
+      summary: `Dependency files were modified and require human review before merge.\n\n**Changed dependency files:**\n${fileList}\n\n**To resolve:** A maintainer must submit an approving PR review. The approval must be on the current head commit (non-stale).`,
+      annotations: annotations
+    }
+  });
 };
