@@ -6,7 +6,7 @@
 function parseFixesReferences(body) {
   if (!body) return [];
 
-  const regex = /[Ff]ixes\s+#(\d+)/g;
+  const regex = /fixes\s+#(\d+)/gi;
   const matches = [];
   const seen = new Set();
 

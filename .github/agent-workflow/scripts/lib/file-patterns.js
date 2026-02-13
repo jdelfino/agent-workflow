@@ -6,7 +6,7 @@
 function isTestFile(filename) {
   return /\.(test|spec)\.(js|ts|jsx|tsx|py|go|rs)$/.test(filename) ||
          /__tests__\//.test(filename) ||
-         /\/tests?\//.test(filename) ||
+         /(^|\/)tests?\//.test(filename) ||
          /_test\.(go|rs)$/.test(filename);
 }
 
