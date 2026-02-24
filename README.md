@@ -1,6 +1,6 @@
 # agent-workflow
 
-An agent-friendly development workflow for [Claude Code](https://claude.ai/code). Three commands, specialized review agents, and structured issue tracking — designed to keep AI agents productive and disciplined across long sessions.
+An agent-friendly development workflow for [Claude Code](https://claude.ai/code). Decomposes large changes into small, focused tasks that fit comfortably within a context window, then orchestrates those tasks to complete bigger chunks of work. Three commands, specialized review agents, and structured issue tracking.
 
 ## What You Get
 
