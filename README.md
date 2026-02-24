@@ -93,10 +93,6 @@ See `AGENTS.md` for the full beads workflow documentation.
 
 The skills reference a **Quality Gates** table in your project's `CLAUDE.md`. Define what commands to run for each area of your codebase. See the CLAUDE.md template in this repo.
 
-### Protected vs. Unprotected Main
-
-By default, the coordinator supports both direct commits (small changes) and branch/PR workflows (larger changes). To require all changes go through PRs, remove the "Direct Mode" section from the coordinator skill and add branch protection to your repo.
-
 ### Adding Project-Specific Skills
 
 Create new skills in `.claude/skills/<name>/SKILL.md` with a YAML frontmatter header. Reference them from commands in `.claude/commands/`.
