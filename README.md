@@ -17,7 +17,7 @@ An agent-friendly development workflow for [Claude Code](https://claude.ai/code)
 
 1. Copy `.claude/` and `AGENTS.md` into your project
 2. Replace `CLAUDE.md` with your project-specific version (see the template in this repo)
-3. Install [beads](https://github.com/jdelfino/beads): `cargo install beads`
+3. Install [beads](https://github.com/jdelfino/beads) (see [installation instructions](https://github.com/jdelfino/beads#installation))
 4. Start working: `/plan "Add user authentication"` then `/work <epic-id>`
 
 ## How It Works
@@ -104,7 +104,7 @@ Create new skills in `.claude/skills/<name>/SKILL.md` with a YAML frontmatter he
 ## Requirements
 
 - [Claude Code](https://claude.ai/code) CLI
-- [beads](https://github.com/jdelfino/beads) (`cargo install beads`)
+- [beads](https://github.com/jdelfino/beads) (see [installation instructions](https://github.com/jdelfino/beads#installation))
 - `gh` CLI (authenticated)
 - Git
 
