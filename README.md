@@ -5,7 +5,7 @@ An agent-friendly development workflow for [Claude Code](https://claude.ai/code)
 ## What You Get
 
 **Three commands:**
-- `/plan <description>` — Collaboratively decompose work into issues with dependencies
+- `/plan <description>` — Collaboratively design, review, and refine an approach, then decompose it into issues with dependencies
 - `/work <id>` — Implement, review, and open a PR — all from one command
 - `/merge` — Process open PRs: merge when CI passes, rebase when behind, file issues for failures
 
