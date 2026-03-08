@@ -157,7 +157,8 @@ Task(
   prompt: "ROLE: Implementer
            SKILL: read .claude/skills/implementer/SKILL.md
            WORKTREE: ../myapp-jwt-authentication
-           TASK: bd-a3f8.1"
+           TASK: bd-a3f8.1
+           Read the task description: bd show bd-a3f8.1 --json"
 )
 ```
 
@@ -169,7 +170,7 @@ New agent. Clean context window. It wakes up knowing only these four things. `im
 - **Phase 4 — Coverage review.** Run `git diff --name-only` to see what changed. Map changes to tests. Find gaps (error cases, edge cases). Write missing tests. Rerun quality gates.
 - **Phase 5 — Summary.** Output structured result: what changed, what was tested, any concerns. Return to coordinator.
 
-**Spawn 3 reviewers in parallel** (skipped for single-file or config-only changes):
+**Spawn 3 reviewers in parallel** (optional for small, isolated changes — single-file fixes, typo corrections, config tweaks — required for anything of any complexity):
 
 ```
 Task → SKILL: reviewer-correctness/SKILL.md   ─┐
@@ -198,7 +199,7 @@ Same cycle for each remaining task: claim → spawn implementer → run reviewer
 
 Since all three tasks share the same worktree (`../myapp-jwt-authentication`), each implementer picks up where the previous one left off. Commits accumulate on `feature/jwt-authentication`.
 
-After all three tasks are complete, the coordinator runs quality gates one final time, pushes the branch, and creates a single PR covering the entire epic.
+After all three tasks are complete, the coordinator runs quality gates one final time, pushes the branch, creates a single PR covering the entire epic, and hands off to you for review and merge. Merging is always the human's job.
 
 ---
 
@@ -254,7 +255,7 @@ Lightweight (small/clear):
         Task → reviewer-tests/SKILL.md         ├─ parallel
         Task → reviewer-architecture/SKILL.md ─┘
         fix trivial findings, file issues for non-trivial
-      after all tasks: push branch, open ONE PR
+      after all tasks: push branch, open ONE PR → hand off to human for merge
 ```
 
 Every box is either a file loaded into a context window, or a fresh subagent spawned via the Task tool. Nothing is implicit. Every agent's behavior is determined entirely by which SKILL.md it was told to read at the moment it was spawned.
