@@ -4,9 +4,11 @@ An agent-friendly development workflow for [Claude Code](https://claude.ai/code)
 
 ## What You Get
 
-**Three commands:**
+**Four commands:**
 - `/plan <description>` — Collaboratively design, review, and refine an approach, then decompose it into issues with dependencies
-- `/work <id>` — Implement, review, and open a PR — all from one command. Human merges.
+- `/work <id>` — Implement, review, and open a PR per bead — all from one command. Human merges.
+- `/merged [branch]` — After merging a PR on GitHub: closes the bead, removes the worktree, deletes the branch. This unblocks dependent beads.
+- `/pr [branch]` — Regenerate or update a PR summary. The coordinator auto-creates PRs; use this to refresh after additional commits.
 
 **Automated pre-PR review:** Three specialized reviewers (correctness, tests, architecture) run in parallel before every PR is created.
 
@@ -35,7 +37,15 @@ The planner explores your codebase, discusses tradeoffs with you, then creates a
 you> /work bd-42
 ```
 
-The coordinator creates a feature branch and worktree, implements tasks via test-first development (spawning implementer subagents), runs three parallel code reviews, and opens a PR for human review and merge.
+The coordinator identifies which beads are ready (no open blocking dependencies), creates a dedicated worktree and branch per bead, implements via test-first development (spawning implementer subagents), runs three parallel code reviews, and auto-creates a PR. Dependent beads stay blocked until you merge and run `/merged`.
+
+### Post-merge (`/merged`)
+
+```
+you> /merged feature/bd-42-add-users-table
+```
+
+After merging a PR on GitHub, run `/merged` with the branch name. It verifies the merge, closes the bead, removes the worktree, and deletes the branch — unblocking any beads that were waiting on it.
 
 ## Architecture
 
@@ -58,6 +68,8 @@ The coordinator creates a feature branch and worktree, implements tasks via test
 |---------|--------|
 | `/work <id>` | Invoke coordinator |
 | `/plan <desc>` | Invoke planner |
+| `/merged [branch]` | Close bead and clean up after PR is merged |
+| `/pr [branch]` | Regenerate or update a PR summary |
 | `/epic <id>` | Redirects to `/work` |
 | `/gh-issue <num>` | Work on a GitHub issue end-to-end |
 

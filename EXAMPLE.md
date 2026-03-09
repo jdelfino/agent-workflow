@@ -122,9 +122,7 @@ Only `bd-a3f8.1` shows because the other two are blocked by dependencies. Beads 
 
 ---
 
-### Step 3 — `/work bd-a3f8` (the epic ID)
-
-You pass the epic ID. The coordinator handles sequencing of all subtasks.
+### Step 3 — `/work bd-a3f8` (run 1)
 
 **What runs:** `.claude/commands/work.md`
 
@@ -132,17 +130,19 @@ Router. Runs `bd show bd-a3f8 --json` and `bd list --parent bd-a3f8 --json` to f
 
 **What runs next:** `coordinator/SKILL.md` (running on Opus 4.6)
 
-The coordinator reads all three tasks and their dependencies. Before anything else, it:
+The coordinator reads all three tasks. It immediately filters: which are ready? Only `bd-a3f8.1` has no open blocking dependencies. The other two are blocked. The coordinator works only on what's ready — it does not queue or speculatively start blocked work.
 
-1. **Installs dependencies** — runs `npm install` (or equivalent) in the main repo. This must happen before spawning any subagents so they have a working environment.
-2. **Analyzes file overlap** — checks which files each task will touch. Tasks that share files must run sequentially. Tasks with no overlap can run in parallel. Since this chain has strict dependencies, all three run sequentially.
-3. **Creates one worktree and one branch** for the entire work unit:
+For `bd-a3f8.1`, the coordinator:
+
+1. **Analyzes file overlap** — which files will this touch? Only one bead is running this round, so no parallelism question arises. (If two independent beads were ready simultaneously, the coordinator would run them in parallel in separate worktrees if they don't share files.)
+2. **Creates a dedicated worktree and branch** for this bead:
 
 ```bash
-git worktree add ../myapp-jwt-authentication -b feature/jwt-authentication
+git fetch origin main
+git worktree add ../myapp-bd-a3f8.1-users-table -b feature/bd-a3f8.1-users-table origin/main
 ```
 
-One branch. All three subtasks will accumulate commits here. One PR at the end. No merges between subtasks.
+One bead, one worktree, one branch. Commits for `bd-a3f8.1` accumulate here only.
 
 ---
 
@@ -156,21 +156,21 @@ Task(
   model: "sonnet",
   prompt: "ROLE: Implementer
            SKILL: read .claude/skills/implementer/SKILL.md
-           WORKTREE: ../myapp-jwt-authentication
+           WORKTREE: ../myapp-bd-a3f8.1-users-table
            TASK: bd-a3f8.1
            Read the task description: bd show bd-a3f8.1 --json"
 )
 ```
 
-New agent. Clean context window. It wakes up knowing only these four things. `implementer/SKILL.md` loads. Five phases, strictly ordered:
+New agent. Clean context window. `implementer/SKILL.md` loads. Five phases, strictly ordered:
 
 - **Phase 1 — Write failing tests.** Before touching the schema, write tests that describe the desired behavior. They fail because nothing exists yet. No exceptions, ever.
 - **Phase 2 — Implement.** Create the Prisma schema and migration. Make the tests pass.
 - **Phase 3 — Verify.** Run all quality gate commands from `CLAUDE.md`. Zero errors required.
 - **Phase 4 — Coverage review.** Run `git diff --name-only` to see what changed. Map changes to tests. Find gaps (error cases, edge cases). Write missing tests. Rerun quality gates.
-- **Phase 5 — Summary.** Output structured result: what changed, what was tested, any concerns. Return to coordinator.
+- **Phase 5 — Commit and summary.** Commit all changes. Output structured result: what changed, what was tested, any concerns. Return to coordinator.
 
-**Spawn 3 reviewers in parallel** (optional for small, isolated changes — single-file fixes, typo corrections, config tweaks — required for anything of any complexity):
+**Spawn 3 reviewers in parallel** (skipped for single-file or config-only changes — required for anything of any complexity):
 
 ```
 Task → SKILL: reviewer-correctness/SKILL.md   ─┐
@@ -178,7 +178,7 @@ Task → SKILL: reviewer-tests/SKILL.md          ├─ simultaneous
 Task → SKILL: reviewer-architecture/SKILL.md  ─┘
 ```
 
-Three fresh context windows. Each reads its SKILL.md and the git diff since the last commit:
+Three fresh context windows. Each reads its SKILL.md and the git diff in the worktree:
 
 - **Correctness**: is the logic right? Any edge cases missed?
 - **Tests**: are the tests actually testing behavior, or just line coverage?
@@ -189,17 +189,69 @@ Three fresh context windows. Each reads its SKILL.md and the git diff since the 
 - **Trivial issues** (typos, minor naming) → coordinator fixes directly, commits to the same branch
 - **Non-trivial issues** (bugs, missing tests, duplication) → coordinator files a beads issue, spawns an implementer to fix it, closes the issue when done
 
-No PR yet. bd-a3f8.1 work is committed to `feature/jwt-authentication`. The coordinator moves on to the next task in the same worktree.
+After all review findings are resolved, quality gates pass. The coordinator pushes the branch and creates a PR:
+
+```bash
+git -C ../myapp-bd-a3f8.1-users-table push -u origin feature/bd-a3f8.1-users-table
+gh pr create --title "feat: create users table and Prisma schema" \
+  --body "<generated summary with bead context>"
+```
+
+The coordinator marks the bead `in-review` and outputs a handoff:
+
+```
+## Ready for Review — bd-a3f8.1: Create users table and Prisma schema
+
+PR: https://github.com/org/repo/pull/42
+Branch: feature/bd-a3f8.1-users-table
+
+Review the diff, then merge when satisfied.
+After merging: /merged feature/bd-a3f8.1-users-table
+```
+
+**The coordinator stops here.** `bd-a3f8.2` and `bd-a3f8.3` are still blocked. It does not proceed.
 
 ---
 
-**Coordinator — Tasks bd-a3f8.2 and bd-a3f8.3**
+### Step 4 — Human review and merge
 
-Same cycle for each remaining task: claim → spawn implementer → run reviewers → process findings. The coordinator already knows the full task list and dependency order from the initial `bd list --parent` call — it doesn't poll `bd ready` between tasks.
+You review the PR on GitHub. A few things can happen:
 
-Since all three tasks share the same worktree (`../myapp-jwt-authentication`), each implementer picks up where the previous one left off. Commits accumulate on `feature/jwt-authentication`.
+**If the tests or implementation need changes:**
 
-After all three tasks are complete, the coordinator runs quality gates one final time, pushes the branch, creates a single PR covering the entire epic, and hands off to you for review and merge. Merging is always the human's job.
+```
+/work bd-a3f8.1
+```
+
+The coordinator picks up the existing branch, spawns an implementer in the same worktree, pushes the fixes. The PR auto-updates (the `/pr` logic is idempotent — it regenerates the summary and runs `gh pr edit`). Review again.
+
+**When satisfied:** squash merge the PR on GitHub.
+
+---
+
+### Step 5 — `/merged feature/bd-a3f8.1-users-table`
+
+After merging:
+
+1. Verifies the PR is actually merged: `gh pr view --head feature/bd-a3f8.1-users-table --json state`
+2. Extracts bead IDs from commit messages and PR body
+3. Closes the bead: `bd close bd-a3f8.1 --reason "PR merged"`
+4. Removes the worktree: `git worktree remove ../myapp-bd-a3f8.1-users-table`
+5. Deletes the branch locally and remotely
+
+**This is the gate.** Until `/merged` runs and `bd-a3f8.1` is closed, `bd-a3f8.2` stays blocked. If you merge but forget to run `/merged`, the next `/work bd-a3f8` will show `bd-a3f8.2` still blocked — which is the right behavior until the lifecycle is explicitly completed.
+
+---
+
+### Step 6 — `/work bd-a3f8` (run 2)
+
+The coordinator fetches the epic and subtasks again. `bd-a3f8.1` is now closed. `bd-a3f8.2` has no remaining open blockers — it's ready. `bd-a3f8.3` is still blocked by `bd-a3f8.2`.
+
+Critically: `bd-a3f8.2`'s worktree branches from the current `origin/main`, which now contains bead 1's merged code. The implementer inherits exactly the state it depends on.
+
+Same cycle: new worktree, new branch (`feature/bd-a3f8.2-post-login`), implementer, reviewers, push, PR created. Coordinator stops and hands off.
+
+`bd-a3f8.3` follows after `bd-a3f8.2` is merged.
 
 ---
 
@@ -211,22 +263,24 @@ Use this when you already know exactly what needs to be built and don't need the
 /work "add rate limiting to the login endpoint"
 ```
 
-The coordinator sees this isn't a beads ID. It runs:
+The coordinator sees this isn't a beads ID. It creates a bead inline:
 
 ```bash
 bd create "add rate limiting to the login endpoint" -t feature --json
 ```
 
-Creates a bead on the fly, then runs the full cycle — installs dependencies, creates worktree, spawns implementer, runs reviewers (unless it's a single-file change), creates PR. Same output as the full path, just without the planning ceremony.
+Then runs the full per-bead cycle: worktree, branch, implementer, reviewers, push, PR. Same output as the full path — just no planning ceremony. After you merge, `/merged <branch>` closes the bead and cleans up.
 
 The two paths compared:
 
 ```
 Full ceremony (big/uncertain):
   /plan → discuss → beads filed → reviewer-plan → /work <epic-id>
+  → (per-bead loop) → /merged → /work again for next bead
 
 Lightweight (small/clear):
-  /work "description" → coordinator creates bead inline → implements
+  /work "description" → coordinator creates bead inline → implements → PR
+  → /merged
 ```
 
 ---
@@ -242,20 +296,40 @@ Lightweight (small/clear):
       Phase 3: file beads issues (bd-a3f8.1, .2, .3 with dependencies)
       Phase 4: Task → reviewer-plan/SKILL.md → APPROVED
 
-/work bd-a3f8  (epic ID — coordinator handles all subtasks)
+/work bd-a3f8  (run 1 — only bd-a3f8.1 is ready)
   → work.md (router, fetches epic + subtasks from beads)
   → coordinator/SKILL.md (Opus 4.6)
-      install dependencies
-      create ONE worktree + branch: feature/jwt-authentication
-      analyze file overlap → run tasks sequentially (chain dependency)
-      For each task (in dependency order, same worktree):
-        Task → implementer/SKILL.md (Sonnet 4.6)
-                  write failing tests → implement → verify → coverage review → summary
-        Task → reviewer-correctness/SKILL.md  ─┐
-        Task → reviewer-tests/SKILL.md         ├─ parallel
-        Task → reviewer-architecture/SKILL.md ─┘
-        fix trivial findings, file issues for non-trivial
-      after all tasks: push branch, open ONE PR → hand off to human for merge
+      identify ready beads → bd-a3f8.1 only (.2, .3 blocked)
+      create worktree + branch: feature/bd-a3f8.1-users-table (from origin/main)
+      Task → implementer/SKILL.md (Sonnet 4.6)
+                write failing tests → implement → verify → coverage review → commit
+      Task → reviewer-correctness/SKILL.md  ─┐
+      Task → reviewer-tests/SKILL.md         ├─ parallel
+      Task → reviewer-architecture/SKILL.md ─┘
+      fix trivial findings, file issues for non-trivial, rerun quality gates
+      push branch → gh pr create (auto-generated summary)
+      label bd-a3f8.1 in-review → STOP
+
+  ↓ human reviews PR on GitHub ↓
+
+  [if changes needed] /work bd-a3f8.1 → fixes pushed → PR auto-updates
+  [when satisfied] squash merge on GitHub
+
+/merged feature/bd-a3f8.1-users-table
+  → verify PR merged → bd close bd-a3f8.1
+  → git worktree remove → delete branch
+
+/work bd-a3f8  (run 2 — bd-a3f8.2 now unblocked, branches from updated origin/main)
+  → same cycle for bd-a3f8.2
+  → STOP
+
+  ↓ human reviews, merges ↓
+
+/merged feature/bd-a3f8.2-post-login
+/work bd-a3f8  (run 3 — bd-a3f8.3)
+  ...
 ```
+
+The human gate between beads is intentional. `bd-a3f8.2` cannot start until `bd-a3f8.1`'s PR is reviewed, merged, and explicitly closed via `/merged`. This prevents cascading failures where a broken foundation silently propagates into dependent work before anyone has a chance to catch it.
 
 Every box is either a file loaded into a context window, or a fresh subagent spawned via the Task tool. Nothing is implicit. Every agent's behavior is determined entirely by which SKILL.md it was told to read at the moment it was spawned.

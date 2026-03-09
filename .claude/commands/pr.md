@@ -1,6 +1,8 @@
-# Open Pull Request
+# Open or Update Pull Request
 
-Open a PR for **$ARGUMENTS** (or the current branch if no argument given) with an AI-generated summary.
+Create or update the PR for **$ARGUMENTS** (or the current branch if no argument given) with an AI-generated summary.
+
+The coordinator auto-creates a PR when it pushes a branch. Use this command to regenerate or update the PR summary after additional commits, or to manually create a PR for a branch the coordinator didn't push. This command is idempotent — running it multiple times on the same branch always regenerates from the latest diff.
 
 ## 1. Determine the branch
 

@@ -11,13 +11,16 @@ for resolving larger issues in follow-on work.
 |----------|---------|
 | New epic or feature design | `/plan <description-or-epic-id>` |
 | All implementation work | `/work <id-or-description>` |
-| Open a PR after reviewing a branch | `/pr [branch-name]` |
+| Regenerate/update a PR summary | `/pr [branch-name]` |
+| Close bead and clean up after merge | `/merged [branch-name]` |
 
 `/plan` explores the codebase, discusses tradeoffs with you, files beads issues, and runs an architectural plan review. Use it before `/work` for new epics.
 
-`/work` triages the work, creates per-bead branches, runs automated reviews, pushes branches, and hands off a list of branches ready for human review.
+`/work` triages the work, creates per-bead worktrees and branches, runs automated reviews, pushes branches, and auto-creates a PR for each bead. Dependent beads are blocked until their blockers are merged and closed.
 
-`/pr` opens a PR for a branch you've reviewed. It reads the diff, pulls beads context, generates an accurate AI-written summary, and runs `gh pr create`. Run it in a separate terminal once you're satisfied with the branch.
+`/pr` regenerates or updates the PR summary for a branch. Since the coordinator auto-creates PRs, use this when you want to refresh the summary after additional commits. It is idempotent — safe to run multiple times.
+
+`/merged` runs after you merge a PR on GitHub. It verifies the merge, closes the associated bead(s), removes the worktree, and deletes the branch. This is the gate that unblocks dependent beads.
 
 ## Issue Tracking with bd (beads)
 

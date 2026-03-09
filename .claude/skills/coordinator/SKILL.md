@@ -164,12 +164,38 @@ cd <worktree_path>
 
 **Do NOT push if any checks fail.** Fix locally first.
 
-#### d. Push Branch and Hand Off
+#### d. Push Branch and Create PR
 
-Push the reviewed, quality-gate-passing branch for human review:
+Push the reviewed, quality-gate-passing branch:
 
 ```bash
 git -C <worktree_path> push -u origin <branch>
+```
+
+Then create or update the PR using the same logic as `/pr`:
+
+1. Read the diff: `git -C <worktree_path> log origin/main..<branch> --oneline` and `git -C <worktree_path> diff origin/main...<branch>`
+2. Pull bead context: `bd show <bead-id> --json`
+3. Check if a PR already exists: `gh pr list --head <branch> --json number,url --jq '.[0]'`
+4. Create or update:
+   - No PR: `gh pr create --title "<type>: <concise title>" --body "<generated body>"`
+   - Existing PR: `gh pr edit <number> --title "<type>: <concise title>" --body "<generated body>"`
+
+**PR body template:**
+```
+## Summary
+<2-4 bullets — what this bead implements and why>
+
+## Changes
+<list of significant files changed and what changed in each>
+
+## Test plan
+- [ ] Tests pass
+- [ ] <any manual verification steps specific to this change>
+
+Bead: <bead-id>
+
+Generated with Claude Code
 ```
 
 Then output a handoff block for this bead:
@@ -177,27 +203,12 @@ Then output a handoff block for this bead:
 ```
 ## Ready for Review — <bead-id>: <bead-title>
 
+PR: <url>
 Branch: feature/bd-<id>-<slug>
-Beads: <bead-id>
 
-### Summary
-<1-3 bullet points of what was implemented>
-
-### Files changed
-<list of significant files>
-
-### Test plan
-- [ ] Tests pass
-- [ ] <manual verification steps if any>
-
-### Review the diff
-git diff origin/main...feature/bd-<id>-<slug>
-
-### When satisfied, open the PR
-/pr feature/bd-<id>-<slug>
+Review the PR on GitHub. After merging:
+/merged feature/bd-<id>-<slug>
 ```
-
-**Do NOT run `gh pr create`.** The human opens PRs after reviewing.
 
 #### e. Update Beads Status
 
@@ -222,19 +233,18 @@ Check the "Concerns" section in the implementer summary — file follow-up issue
 After all ready beads are processed, report to the human:
 
 ```
-Branches ready for review this run:
-- feature/bd-<id>-<slug> — <bead-id>: <bead-title>
-- feature/bd-<id>-<slug> — <bead-id>: <bead-title>
+PRs ready for review this run:
+- <pr-url> — <bead-id>: <bead-title>
+- <pr-url> — <bead-id>: <bead-title>
 
 Blocked beads (waiting on reviews/merges):
 - <bead-id>: <title> — blocked on <dependency-bead-id>
 
 Next steps:
-- Review each branch: git diff origin/main...feature/bd-<id>-<slug>
-- Open PRs when satisfied: /pr feature/bd-<id>-<slug>
+- Review each PR on GitHub
 - Merge PRs in dependency order (human's job)
-- After merging a blocker, run /work <epic-id> to continue
-  with blocked beads — bd ready will show them once blockers are closed
+- After merging: /merged feature/bd-<id>-<slug>
+- After all blockers are merged and closed, run /work <epic-id> to continue
 ```
 
 ---
@@ -245,7 +255,6 @@ Next steps:
 - Starting a dependent bead before its blocker is closed
 - Parallelizing beads that touch the same files — analyze overlap first
 - Pushing with failing tests or quality gate failures
-- Running `gh pr create` — PR creation is the human's job after review
 - Merging PRs (that's the human's job)
 - Watching CI (that's the human's job)
 - Cleaning up worktrees before merge (that's the human's job)
