@@ -17,6 +17,19 @@ This skill covers development only — no issue tracking, no commits, no pushes.
 - No optional chaining on required properties.
 - **Every production code change requires tests.** No exceptions for migrations, refactors, copy-paste, or "just wiring things up." If you wrote or modified production code, you must write tests for it. Never defer tests to a follow-up issue.
 
+## Phase 0: Announce Approach
+
+Before writing any code or tests, output a brief statement of your plan. This is informational — do **not** wait for approval. Continue immediately to Phase 1.
+
+```
+APPROACH: <task-id or "N/A">
+Files to touch: <list of files you expect to modify>
+Strategy: <1-3 sentences — what you'll do and why>
+Key decisions: <any non-obvious choices, or "N/A">
+```
+
+Keep it short. The human may read it async and interrupt only if something looks wrong.
+
 ## Phase 1: Write Failing Tests
 
 Write tests for the behavior you are about to change or add. Do this **before** touching any production code.
