@@ -20,17 +20,21 @@ Use priority 1 for bugs, 2 for features/tasks unless the issue indicates urgency
 
 ## 3. Implement
 
-Follow the coordinator workflow below. The coordinator will triage the work and create a branch/PR.
+Follow the coordinator workflow below. The coordinator will triage the work, create branches, run reviews, and push them for human review.
 
 ## 4. PR Must Reference the GitHub Issue
 
-When creating a PR, the body **must** include:
+When running `/pr` for this branch, include the GitHub issue number so the body auto-closes the issue on merge:
+
+```
+/pr feature/bd-<id>-<slug>
+```
+
+The `/pr` command will detect `Closes #<github-issue-number>` from the commit messages or prompt you to confirm it. Verify the PR body contains:
 
 ```
 Closes #<github-issue-number>
 ```
-
-This auto-closes the GitHub issue when the PR merges.
 
 ---
 

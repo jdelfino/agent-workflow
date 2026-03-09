@@ -1,13 +1,13 @@
 ---
 name: implementer
-description: Pure development workflow with test-first development and coverage review. Used by coordinator as a subagent. Never manages beads issues or commits.
+description: Pure development workflow with test-first development and coverage review. Used by coordinator as a subagent. Commits work but never pushes, never manages beads issues.
 ---
 
 # Implementer
 
 Follow these phases **in strict order**. Do not skip phases. Do not proceed until the current phase's gate is satisfied.
 
-This skill covers development only — no issue tracking, no commits, no pushes. The coordinator handles those.
+This skill covers development only — no issue tracking, no pushes. The coordinator handles push and beads lifecycle. The implementer commits its own work.
 
 ## Principles
 
@@ -94,7 +94,15 @@ Write any missing tests identified above. Then re-run quality gates.
 
 **Gate:** All tests pass, including your new coverage additions. If you identified no gaps in Steps 2-3, document your reasoning (e.g., "Changes were purely deletions; added regression tests in Phase 1 confirming removed elements no longer render").
 
-## Phase 5: Summary
+## Phase 5: Commit and Summary
+
+First, commit all changes:
+```bash
+git add -A
+git commit -m "<type>(<scope>): <short description>
+
+Bead: <task-id>"
+```
 
 **This must be the very last thing you output.** The coordinator reads your result — keep it concise to avoid polluting its context.
 
