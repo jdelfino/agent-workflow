@@ -34,7 +34,27 @@ For every changed production file, find its corresponding test file. Flag produc
 
 ### 2. Read Each Test File
 
-For every test file, read it completely and check:
+**Review order matters.** Follow this sequence for every test file:
+
+1. **Read all docstrings first.** Verify that each test's docstring answers: (a) what behavioral contract is being verified, (b) why it matters to correctness, and (c) what would break if violated. If a docstring only describes *what the code does* without explaining *why it matters*, flag it.
+2. **Spot-check assertions.** After reading docstrings, verify that the assertions match the stated intent. You do not need to read every line of implementation — only dig deeper if something feels misaligned.
+3. **Go into implementation** only when a docstring is missing, misleading, or the assertion pattern raises a concern.
+
+This order is intentional: docstrings are the primary specification. If they are absent or vague, the test is unreviewed regardless of whether the assertions look right.
+
+#### Docstring Quality
+
+For every test, verify the docstring (or equivalent block comment):
+- States **what** behavioral contract or invariant is being tested
+- Explains **why** that contract matters to correctness (not just what the code does)
+- Describes **what breaks** — the observable symptom if the contract is violated
+- Motivates the **why before the how** — rationale comes before mechanics
+
+Flag as non-trivial any test that lacks a docstring or whose docstring only describes implementation without explaining the correctness reason.
+
+#### Test Names & Organization
+- Do test names describe the **behavioral contract**, not the implementation? ("second call returns cached result without re-executing", not "test_cache_hit")
+- Are table-driven tests used where appropriate?
 
 #### Are Tests Meaningful?
 - Do tests verify actual behavior, or just that code doesn't crash?
@@ -42,6 +62,8 @@ For every test file, read it completely and check:
 - Are assertions checking the right things? (e.g., checking response body, not just status code)
 
 #### Mock vs Real Behavior
+- Does any test mock a **core dependency** (persistence layer, external service call, core state)?
+  - If yes: is there a `# REVIEW: mocking core dependency — test may not reflect real behavior` comment directly above the mock setup? If not, flag it.
 - Do tests only exercise mocks, never testing real logic?
 - Are mocks verifying what was sent to them? (e.g., checking the SQL query, the HTTP request body)
 - Could a completely wrong implementation still pass these tests?
@@ -58,21 +80,18 @@ For every test file, read it completely and check:
 - Are boundary conditions covered? (empty input, max values, nil/null)
 - Are concurrent scenarios tested if the code is concurrent?
 
-#### Test Names & Organization
-- Do test names describe the behavior being tested?
-- Are table-driven tests used where appropriate?
-
 #### Meaningless Tests (flag these specifically)
 - Tests that assert `ctx != nil` or similar tautologies
 - Tests that only check `err == nil` without verifying the result
 - Tests that duplicate what the compiler already checks
 - Tests with no assertions at all
+- Tests with no docstring or a docstring that only restates the test name
 
 ### 3. Assess Severity
 
-**Trivial**: misleading test name, minor missing edge case.
+**Trivial**: misleading test name, minor missing edge case, docstring that describes behavior but omits the "what breaks" clause.
 
-**Non-trivial**: production file with no tests, tests that provide false confidence (all mocks, no real logic tested), missing error path coverage, no integration tests for database/store code.
+**Non-trivial**: production file with no tests, tests that provide false confidence (all mocks, no real logic tested), missing error path coverage, no integration tests for database/store code, missing docstrings on tests covering core behavior, mock of a core dependency without the `# REVIEW` flag.
 
 ## Report Your Outcome
 
@@ -94,4 +113,8 @@ Untested production files:
 - <file path, or "None">
 Missing integration tests:
 - <description of what needs integration testing, or "None">
+Docstring gaps:
+- <test-file:line — what is missing from the docstring, or "None">
+Unflagged core dependency mocks:
+- <test-file:line — which dependency is mocked without REVIEW comment, or "None">
 ```

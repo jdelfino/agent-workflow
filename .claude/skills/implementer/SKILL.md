@@ -44,6 +44,59 @@ Write tests for the behavior you are about to change or add. Do this **before** 
 2. Write new test cases that describe the desired behavior after your change
 3. Run the tests using the appropriate test command (see **Quality Gates** in CLAUDE.md)
 
+### Test Documentation Standards
+
+Every test **must** follow these standards — they are not optional:
+
+#### Docstrings
+
+Every test must have a docstring (or language-equivalent block comment) that answers three questions:
+
+1. **What** behavioral contract or invariant is this test verifying?
+2. **Why** does that contract matter to correctness — what real problem does it prevent?
+3. **What breaks** if this contract is violated — what symptom would a user or caller observe?
+
+Motivate the **why before the how**. Do not merely describe what the code does; explain why it matters.
+
+```python
+# Good — answers all three questions
+def test_second_call_returns_cached_result_without_re_executing():
+    """
+    Verifies that repeated calls for the same key return the cached result
+    rather than re-executing the underlying computation.
+
+    This matters because re-executing can trigger side effects (network calls,
+    DB writes) and degrade performance for hot paths.
+
+    If this contract breaks, callers that rely on idempotency will observe
+    duplicate side effects and unexpected latency spikes.
+    """
+```
+
+#### Test Naming
+
+Names must describe the **behavioral contract**, not the implementation:
+
+```
+# Bad — describes implementation
+test_cache_hit
+
+# Good — describes the contract
+second_call_returns_cached_result_without_re_executing
+```
+
+The name should read as a specification of expected behavior: what scenario, what outcome.
+
+#### Flagging Hollow Mocks
+
+If a test mocks a **core dependency** — anything central to the system's correctness, such as persistence layers, external service calls, or core state — add this comment directly above the mock setup:
+
+```
+# REVIEW: mocking core dependency — test may not reflect real behavior
+```
+
+This comment must be visible without reading the implementation. It flags that the test may provide false confidence and should be paired with an integration test that exercises the real dependency.
+
 **Gate:** Your new tests **fail** (or, for pure deletions/removals, you can write tests asserting the old behavior is gone — these will pass after implementation). If your new tests already pass, they are not testing anything new. Rewrite them.
 
 ## Phase 2: Implement
