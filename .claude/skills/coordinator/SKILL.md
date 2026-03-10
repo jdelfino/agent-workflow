@@ -198,19 +198,33 @@ Bead: <bead-id>
 Generated with Claude Code
 ```
 
-Then output a handoff block for this bead:
+#### e. Approval Gate
+
+After creating or updating the PR, output the following block and use AskUserQuestion
+to wait for explicit approval before proceeding to the next bead:
 
 ```
-## Ready for Review — <bead-id>: <bead-title>
-
+BEAD [n] COMPLETE
+Tasks completed: <bead-id>: <bead-title>
+Tests passing: <quality gate commands that passed>
 PR: <url>
-Branch: feature/bd-<id>-<slug>
-
-Review the PR on GitHub. After merging:
-/merged feature/bd-<id>-<slug>
+Waiting for approval to proceed to bead [n+1].
 ```
 
-#### e. Update Beads Status
+Counter `n` is a sequential integer local to this `/work` run, starting at 1 and
+incrementing with each bead processed (not the bead's global ID).
+
+Use AskUserQuestion with a single option "Continue to bead [n+1]" to gate forward
+progress. **Do NOT start the next bead until the user confirms.**
+
+For **parallel independent beads**: all complete their PRs simultaneously, each
+outputs its own `BEAD [n] COMPLETE` block. The gate fires once — covering all of them
+— before starting any subsequent tier of work.
+
+For **single-bead runs**: still output the `BEAD COMPLETE` block (omit the
+"Waiting for approval" line since there is no next bead).
+
+#### f. Update Beads Status
 
 ```bash
 bd update <id> --set-labels in-review --json
@@ -230,22 +244,23 @@ Check the "Concerns" section in the implementer summary — file follow-up issue
 
 ## Phase 3: Hand Off
 
-After all ready beads are processed, report to the human:
+After all beads in this run are complete and approved, output a short final summary:
 
 ```
-PRs ready for review this run:
-- <pr-url> — <bead-id>: <bead-title>
+All [n] beads processed this run. PRs ready for review:
 - <pr-url> — <bead-id>: <bead-title>
 
 Blocked beads (waiting on reviews/merges):
 - <bead-id>: <title> — blocked on <dependency-bead-id>
 
 Next steps:
-- Review each PR on GitHub
-- Merge PRs in dependency order (human's job)
+- Review and merge PRs in dependency order
 - After merging: /merged feature/bd-<id>-<slug>
-- After all blockers are merged and closed, run /work <epic-id> to continue
+- After blockers are merged and closed: /work <epic-id> to continue
 ```
+
+Note: The per-bead `BEAD [n] COMPLETE` blocks already carry the detailed per-PR
+information. Phase 3 is a short wrap-up only.
 
 ---
 
