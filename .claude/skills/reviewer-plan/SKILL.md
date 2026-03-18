@@ -64,10 +64,16 @@ Read the code that will be affected. Understand:
 - [ ] Are there missing tasks? (migrations, config, test infrastructure, shared utilities)
 - [ ] Does each task have clear acceptance criteria?
 
+#### Task Sizing
+- [ ] Will each task fit in a single implementer context window? (≤5 production files, ≤10 files read)
+- [ ] Are tasks sliced vertically (one feature end-to-end) rather than horizontally (all endpoints at once)?
+- [ ] Are large tasks justified? (e.g., splitting would create tightly coupled tasks)
+
 #### Task Quality
 - [ ] Is each task self-contained? (Readable without external context)
 - [ ] Are file paths specific? (Not "somewhere in the handlers directory")
 - [ ] Are implementation steps concrete? (Not "implement the feature")
+- [ ] Do tasks that touch persistence, API routes, auth, or cross-layer data flow call out the need for integration tests?
 
 ## Report Your Outcome
 

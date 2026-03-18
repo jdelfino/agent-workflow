@@ -16,7 +16,7 @@ Run this in a dedicated terminal window. Invoke periodically with `/merge` while
 gh run list --branch main --limit 1 --json status,conclusion
 
 # List open PRs
-gh pr list --json number,title,headRefName,statusCheckRollup,mergeable,body,reviewRequests,reviews
+gh pr list --json number,title,headRefName,statusCheckRollup,mergeable,body,reviewRequests,reviews,labels
 ```
 
 **If main CI is failing:** file a P0 beads issue (if one doesn't already exist), report prominently, and stop. Nothing can merge until main is green.
@@ -31,7 +31,8 @@ For each PR, determine its state:
 
 | State | Action |
 |-------|--------|
-| CI passing, mergeable, no pending review | Merge |
+| CI passing, mergeable, no pending review, no `needs-human-review` label | Merge |
+| CI passing, mergeable, `needs-human-review` label, not approved | Skip, report "awaiting human review" |
 | CI passing, mergeable, review requested but not approved | Skip, report |
 | CI passing, mergeable, review approved | Merge |
 | CI pending | Skip, report status |
@@ -86,15 +87,16 @@ gh pr merge <number> --squash|--merge  # per Step 4
    ```bash
    bd close <id> --reason "Merged in PR #<number>" --json
    ```
-3. Remove worktree if it exists:
+3. Note any `Closes #<number>` lines — GitHub auto-closes those issues on merge. Include them in the summary.
+4. Remove worktree if it exists:
    ```bash
    git worktree remove ../<project>-<branch-name> 2>/dev/null
    ```
-4. Delete feature branch:
+5. Delete feature branch:
    ```bash
    git branch -d feature/<branch-name> 2>/dev/null
    ```
-5. Pull main:
+6. Pull main:
    ```bash
    git pull origin main
    ```
@@ -105,27 +107,51 @@ gh pr merge <number> --squash|--merge  # per Step 4
 
 When a PR is not mergeable (behind main):
 
-```bash
-git fetch origin main
+1. **Locate or create a worktree for the PR branch:**
+   ```bash
+   # Use existing worktree if present, otherwise create one
+   git worktree add ../<project>-rebase-<number> <branch>
+   ```
 
-# Use existing worktree if present, otherwise create one
-cd <existing-worktree>  # or: git worktree add ../<project>-rebase-<number> <branch>
-git rebase origin/main
-```
+2. **Try fast-path rebase first** (inline bash — no subagent):
+   ```bash
+   cd ../<project>-rebase-<number>
+   git fetch origin main
+   git rebase origin/main && echo "REBASE: OK"
+   ```
 
-- **Clean rebase:** force-push, then **wait for CI to finish and merge** (see below).
-  ```bash
-  git push --force-with-lease
-  ```
-- **Trivial conflict:** resolve inline if the conflict is mechanical — e.g. adjacent line edits, import ordering, lock file regeneration, or both sides adding to the same list. After resolving, `git add` the files, `git rebase --continue`, and force-push. **Always include a conflict summary in the report:**
-  ```
-  Resolved 2 conflicts during rebase of PR #18:
-  - src/routes/api.ts: adjacent route additions (kept both)
-  - package-lock.json: regenerated
-  ```
-- **Non-trivial conflict:** file a beads issue describing the conflict, which files are affected, and what makes it non-trivial (semantic overlap, structural disagreement, etc.). Do not attempt to resolve. Report to user.
+3. **If fast-path succeeds:** force-push and proceed to CI polling.
+   ```bash
+   git push --force-with-lease
+   ```
 
-After rebase, clean up any temporary worktree created for the rebase.
+4. **If fast-path fails (conflict):** abort and spawn the rebase subagent:
+   ```bash
+   git rebase --abort
+   ```
+   Then spawn with context:
+   ```
+   ROLE: Rebase Agent (Conflict Resolution)
+   SKILL: Read and follow .claude/skills/rebase/SKILL.md
+
+   SOURCE: <branch>
+   TARGET: origin/main
+   WORKTREE: ../<project>-rebase-<number>
+   CLEANUP: false
+   PR_NUMBER: <number>
+   ```
+
+5. **On `RESULT: PASS`:** force-push the rebased branch, then **wait for CI to finish and merge** (see below).
+   ```bash
+   cd ../<project>-rebase-<number>
+   git push --force-with-lease
+   ```
+
+6. **On `RESULT: FAIL`:** file a beads issue describing the conflict using details from the sub-agent output, and report to the user.
+   ```bash
+   bd create "Rebase conflict on PR #<number>: <summary>" -t bug -p 1 --json
+   ```
+   Include in the issue body: which files conflicted, why the conflict is ambiguous, and the PR reference.
 
 **After a clean rebase, poll CI and merge when it passes.** Don't just report "rebased, CI re-running" and stop — unmerged PRs accumulate conflicts. Poll every 60 seconds until CI completes:
 
