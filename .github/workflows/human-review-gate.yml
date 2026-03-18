@@ -1,0 +1,42 @@
+name: Human Review Gate
+
+# Blocks merge on PRs labeled "needs-human-review" until a human approves.
+# PRs without the label pass immediately.
+#
+# To use: add "human-review-gate" as a required status check in branch protection.
+
+on:
+  pull_request:
+    types: [opened, labeled, unlabeled, synchronize]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  human-review-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check review gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          NEEDS_REVIEW=$(gh pr view "${{ github.event.pull_request.number || github.event.review.pull_request_number }}" \
+            --repo "${{ github.repository }}" \
+            --json labels,reviews \
+            --jq '{
+              needs: ([.labels[].name] | any(. == "needs-human-review")),
+              approved: ([.reviews[] | select(.state == "APPROVED")] | length > 0)
+            }')
+
+          NEEDS=$(echo "$NEEDS_REVIEW" | jq -r '.needs')
+          APPROVED=$(echo "$NEEDS_REVIEW" | jq -r '.approved')
+
+          if [ "$NEEDS" = "true" ] && [ "$APPROVED" != "true" ]; then
+            echo "::error::PR requires human review. Approve the PR on GitHub to unblock."
+            exit 1
+          fi
+
+          if [ "$NEEDS" = "true" ]; then
+            echo "Human review: approved"
+          else
+            echo "Human review: not required"
+          fi

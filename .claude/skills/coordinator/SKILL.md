@@ -199,10 +199,11 @@ EOF
 
 **After creating the PR:**
 
-1. If user indicated review needed: request review
+1. If user indicated review needed (e.g., "review this", "flag for review", or high-risk changes like auth/infra/migrations):
    ```bash
-   gh pr edit <number> --add-reviewer <username>
+   gh pr edit <number> --add-label "needs-human-review"
    ```
+   This blocks merge until a human approves the PR on GitHub (requires the human-review-gate workflow — see `scripts/setup-github-app.sh`).
 2. Label beads issues as `in-pr`:
    ```bash
    bd update <id> --set-labels in-pr --json
