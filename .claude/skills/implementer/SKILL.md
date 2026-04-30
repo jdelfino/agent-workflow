@@ -7,7 +7,7 @@ description: Pure development workflow with test-first development and coverage 
 
 Follow these phases **in strict order**. Do not skip phases. Do not proceed until the current phase's gate is satisfied.
 
-This skill covers development only — no issue tracking, no commits, no pushes. The coordinator handles those.
+This skill covers development only — no issue tracking, no pushes. The coordinator handles those.
 
 ## Principles
 
@@ -16,10 +16,15 @@ This skill covers development only — no issue tracking, no commits, no pushes.
 - No type casts that bypass the type system.
 - No optional chaining on required properties.
 - **Every production code change requires tests.** No exceptions for migrations, refactors, copy-paste, or "just wiring things up." If you wrote or modified production code, you must write tests for it. Never defer tests to a follow-up issue.
+- **Test cases from the issue are your spec.** When the planner has defined concrete test cases on the task, implement those first, then add high-value coverage for gaps.
+- **Delegate quality-gate runs to a test-runner sub-agent.** Verbose test output consumes your context window — see Phase 3.
+- **If your project enforces lint/typecheck via git hooks** (e.g., lefthook, husky), do not re-run those gates manually. Focus on tests in Phase 3 and let the hooks do their job at commit/push time.
 
 ## Phase 1: Write Failing Tests
 
 Write tests for the behavior you are about to change or add. Do this **before** touching any production code.
+
+If the task issue lists planned test cases, implement those first — they are the acceptance criteria. Then add additional high-value tests for gaps you identify (error paths, edge cases).
 
 **This phase is NOT optional.** Common excuses that do NOT exempt you from writing tests:
 - "It's just a migration" — migrated code has new integration points that need testing
@@ -29,7 +34,9 @@ Write tests for the behavior you are about to change or add. Do this **before** 
 
 1. Read the relevant production code to understand current behavior
 2. Write new test cases that describe the desired behavior after your change
-3. Run the tests using the appropriate test command (see **Quality Gates** in CLAUDE.md)
+3. Verify the new tests fail by delegating to a test-runner sub-agent (see Phase 3)
+
+**Test documentation:** Planned and critical tests (integration, e2e, non-obvious unit tests) should include a docstring answering: what contract is verified, why it matters, what breaks if violated. Tests with descriptive names in table-driven style are often self-documenting — use judgment.
 
 **Gate:** Your new tests **fail** (or, for pure deletions/removals, you can write tests asserting the old behavior is gone — these will pass after implementation). If your new tests already pass, they are not testing anything new. Rewrite them.
 
@@ -39,9 +46,20 @@ Make the production code changes. Keep changes minimal and focused on the task.
 
 ## Phase 3: Verify
 
-Run quality gates matching the code you changed. See the **Quality Gates** table in CLAUDE.md for all targets.
+**Delegate quality-gate runs to a test-runner sub-agent** to preserve your context window. Do NOT run these commands directly with the Bash tool — test output is verbose and wastes context you need for later phases. Use the Task tool with `subagent_type: "Bash"` and `model: "haiku"`:
 
-**Gate:** All quality gate commands pass with zero errors. If any fails, fix the issues before proceeding.
+```
+ROLE: Test Runner
+SKILL: Read and follow .claude/skills/test-runner/SKILL.md
+
+WORKTREE: <worktree-path>
+COMMANDS:
+- <test commands from the Quality Gates table in CLAUDE.md matching changed code>
+```
+
+**Only run gates not already enforced by git hooks.** If your project's pre-commit/pre-push hooks already run lint/typecheck/unit-test, do not duplicate them here — your gate runs should focus on what's *not* in the hooks (typically integration and e2e tests).
+
+**Gate:** Sub-agent reports PASS. If FAIL, read the error summary, fix the issue, and re-delegate. Only run quality gates directly in your own context if you need to debug a failure interactively.
 
 ## Phase 4: Test Coverage Review
 
@@ -77,7 +95,7 @@ If integration tests are needed, write them.
 
 ### Step 4: Fill gaps
 
-Write any missing tests identified above. Then re-run quality gates.
+Write any missing tests identified above. Then re-run quality gates via the test-runner sub-agent.
 
 **Gate:** All tests pass, including your new coverage additions. If you identified no gaps in Steps 2-3, document your reasoning (e.g., "Changes were purely deletions; added regression tests in Phase 1 confirming removed elements no longer render").
 

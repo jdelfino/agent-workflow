@@ -23,17 +23,22 @@ You review the full branch diff for correctness issues. You read every changed l
 
 ## Review Process
 
+### 0. Enter Worktree
+
+```
+EnterWorktree(path: <WORKTREE>)
+```
+
 ### 1. Get the Full Diff
 
 ```bash
-cd <worktree-path>
 git diff <base-branch>...HEAD --stat
 git diff <base-branch>...HEAD
 ```
 
 ### 2. Run Quality Gates
 
-Run quality gates per the **Quality Gates** table in CLAUDE.md. If any fail, note the specific failures.
+Run quality gates per the **Quality Gates** table in CLAUDE.md, unless they're already enforced by your project's git hooks (e.g., lefthook, husky). If you do run them and any fail, note the specific failures.
 
 ### 3. Review Every Changed File
 
@@ -53,7 +58,7 @@ For each file in the diff, check:
 
 #### Security
 - Input validation at system boundaries
-- SQL injection, command injection, XSS
+- Injection risks appropriate to your stack (SQL, command, XSS, template, etc.)
 - Authentication/authorization gaps
 - Secrets in code or logs
 - Unsafe type assertions or casts
