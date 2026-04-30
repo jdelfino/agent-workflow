@@ -24,10 +24,15 @@ You review the full codebase — not just the diff — to catch duplication, pat
 
 ## Review Process
 
+### 0. Enter Worktree
+
+```
+EnterWorktree(path: <WORKTREE>)
+```
+
 ### 1. Understand What Changed
 
 ```bash
-cd <worktree-path>
 git diff <base-branch>...HEAD --stat
 ```
 

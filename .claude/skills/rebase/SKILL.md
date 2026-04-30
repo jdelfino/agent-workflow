@@ -19,6 +19,14 @@ You will receive:
 
 ## Execution
 
+### 0. Enter Worktree
+
+```
+EnterWorktree(path: <WORKTREE>)
+```
+
+All subsequent steps run from inside the worktree.
+
 ### 1. Gather intent
 
 Before touching git, understand what each side was trying to accomplish.
