@@ -19,6 +19,7 @@ This skill covers development only — no issue tracking, no pushes. The coordin
 - **Test cases from the issue are your spec.** When the planner has defined concrete test cases on the task, implement those first, then add high-value coverage for gaps.
 - **Delegate quality-gate runs to a test-runner sub-agent.** Verbose test output consumes your context window — see Phase 3.
 - **If your project enforces lint/typecheck via git hooks** (e.g., lefthook, husky), do not re-run those gates manually. Focus on tests in Phase 3 and let the hooks do their job at commit/push time.
+- **If a hook blocks a tool call, stop.** Never work around it with scripts, `sed`, or other indirect tricks. Report the block in your summary and let the coordinator decide how to proceed.
 
 ## Phase 1: Write Failing Tests
 

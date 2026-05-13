@@ -15,9 +15,9 @@ You are the single entry point for all implementation work. You triage incoming 
 
 ### 1. Parse Input
 
-The input is either a beads ID or an ad-hoc description.
+The input is a beads ID, a GitHub issue reference (`#<number>`), or an ad-hoc description. When the input could plausibly be a beads ID, try `bd show <input> --json` first; if it returns an issue, treat it as one. Otherwise fall through.
 
-**If beads ID:**
+**Beads ID:**
 
 ```bash
 bd show <id> --json
@@ -29,8 +29,16 @@ If it's an epic, also fetch subtasks:
 bd list --parent <id> --json
 ```
 
-**If ad-hoc description (no beads ID):**
-Create a beads issue first:
+**GitHub issue (`#<number>`):** Fetch and convert to a beads issue:
+
+```bash
+gh issue view <number> --json title,body,labels,number
+bd create "<title>" -d "GitHub: #<number> — <description>" -t <type> -p <priority> --json
+```
+
+Map GitHub labels to beads types. Priority 1 for bugs, 2 for features/tasks.
+
+**Ad-hoc description:** Create a beads issue:
 
 ```bash
 bd create "<description>" -t <task|bug|feature> -p 2 --json
@@ -44,28 +52,9 @@ If the issue is a fix for code on an existing feature branch (e.g., CI failure o
 
 ## Branch Mode
 
-All work uses branches and PRs. Uses worktree isolation for subagents.
+You're in your worktree from `/work` — `pwd` is its path. Implementer subagents spawn with `isolation: "worktree"` (the `WorktreeCreate` hook handles branch + per-worktree project setup). Rebase, reviewer, and test-runner subagents enter your existing worktree via a `WORKTREE` field — do NOT use `isolation: "worktree"` for those.
 
-### 1. Setup
-
-**Always branch from `origin/main` unless explicitly directed otherwise by the prompt.** Fetch first to ensure it's up to date:
-
-```bash
-git fetch origin main
-git branch feature/<work-name> origin/main
-```
-
-Then enter a worktree:
-
-```
-EnterWorktree(name: "<work-name>")
-```
-
-The coordinator works from its worktree for the rest of the session.
-
-If your project requires per-worktree dependency setup (symlinks, lockfile resolution, generated files), run that here. Document the steps in CLAUDE.md so they stay in sync with project changes.
-
-### 2. Conflict Avoidance
+### 1. Conflict Avoidance
 
 Before parallelizing tasks, analyze file overlap:
 
@@ -90,7 +79,7 @@ When in doubt, add a dependency:
 bd dep add <later-task-id> <earlier-task-id> --json
 ```
 
-### 3. Implement Tasks
+### 2. Implement Tasks
 
 **Follow the dependency graph from beads.** Spawn all currently-unblocked tasks in parallel. When a task completes, check if any blocked tasks are now unblocked and spawn those.
 
@@ -172,7 +161,7 @@ Triage the "Concerns" section:
 - If blocked: note the blocker, move to next task
 - Do NOT close the task
 
-### 4. Pre-PR Review
+### 3. Pre-PR Review
 
 Reviews are **optional** for small, isolated changes (single-file fixes, typo corrections, config tweaks). For anything of any complexity — multi-file changes, new features, behavioral changes, refactors — reviews are **required**.
 
@@ -230,7 +219,7 @@ COMMANDS:
 
 **Skip the test-runner** if the epic has no acceptance tests. **Do NOT create PR if the test-runner reports FAIL.** Fix locally first (spawn implementer if non-trivial).
 
-### 5. Create PR, Monitor CI, and Hand Off
+### 4. Create PR, Monitor CI, and Hand Off
 
 Run quality gates per the **Quality Gates** table in CLAUDE.md before creating the PR. Delegate to a test-runner sub-agent so verbose output doesn't pollute the coordinator's context.
 
@@ -313,5 +302,5 @@ gh pr checks <number> --watch
 - Merging PRs (that's `/merge`'s job)
 - Handing off to `/merge` before CI passes — coordinator owns CI failures and must fix them
 - Cleaning up worktrees before merge (that's `/merge`'s job)
-- Manually creating worktrees with `git worktree add` — use `EnterWorktree` or `isolation: "worktree"`
-- Using `isolation: "worktree"` for rebase/reviewer/test-runner agents — they enter existing worktrees
+- Manually creating worktrees with `git worktree add` for subagents — use `isolation: "worktree"` so the `WorktreeCreate` hook handles setup
+- Using `isolation: "worktree"` for rebase/reviewer/test-runner agents — they enter the coordinator's existing worktree
