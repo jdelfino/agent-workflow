@@ -1,20 +1,24 @@
 # Work Coordinator
 
-Coordinate work on **$ARGUMENTS** using the coordinator workflow.
+User request: $ARGUMENTS
 
-## 1. Parse Input
+**All work happens in a worktree under `.claude/worktrees/`.** The directory you're in may be irrelevant — re-evaluate from the request above.
 
-- **`bd-*`** (beads ID): `bd show $ARGUMENTS --json`. If epic: `bd list --parent $ARGUMENTS --json`
-- **`#<number>`** (GitHub issue): Fetch and convert to beads issue:
-  ```bash
-  gh issue view <number> --json title,body,labels,number
-  bd create "<title>" -d "GitHub: #<number> — <description>" -t <type> -p <priority> --json
-  ```
-  Map GitHub labels to beads types. Priority 1 for bugs, 2 for features/tasks.
-- **Other** (ad-hoc description): The coordinator will create a beads issue.
+Run `git worktree list`, then:
 
-## 2. Follow the coordinator skill instructions below
+1. Extending an in-flight change → enter its existing worktree.
+2. Stacking new work on an in-flight branch → new worktree from that branch.
+3. Otherwise → new worktree from `origin/main`.
 
----
+To create one (from the main repo root):
+
+```bash
+git fetch origin <base> --quiet
+git worktree add .claude/worktrees/<slug> -b feature/<slug> origin/<base>
+```
+
+If your project requires per-worktree setup (node_modules symlink, lockfile resolution, generated files), run that here.
+
+Then `EnterWorktree(path: .claude/worktrees/<slug>)`. If already in a worktree, `ExitWorktree(action: "keep")` first.
 
 @.claude/skills/coordinator/SKILL.md

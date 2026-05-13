@@ -15,21 +15,67 @@
           {
             "type": "command",
             "command": "cat AGENTS.md"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/set-repo-root.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/mark-stale-worktree.sh"
+          }
+        ]
+      }
+    ],
+    "CwdChanged": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$REPO_ROOT/.claude/hooks/set-repo-root.sh\""
+          }
+        ]
+      }
+    ],
+    "WorktreeCreate": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$REPO_ROOT/.claude/hooks/worktree-create.sh\""
           }
         ]
       }
     ],
     "PreToolUse": [
       {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$REPO_ROOT/.claude/hooks/block-stale-worktree.sh\""
+          }
+        ]
+      },
+      {
         "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/block-branch-switch.sh"
+            "command": "bash \"$REPO_ROOT/.claude/hooks/block-branch-switch.sh\""
           },
           {
             "type": "command",
-            "command": "bash .claude/hooks/block-hook-bypass.sh"
+            "command": "bash \"$REPO_ROOT/.claude/hooks/block-hook-bypass.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$REPO_ROOT/.claude/hooks/ask-on-main-edit.sh\""
           }
         ]
       }

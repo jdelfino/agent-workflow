@@ -35,4 +35,16 @@ Do NOT skip investigation to "ship faster," make speculative fixes without confi
    EOF
    ```
 
-4. **Fix it** — invoke `/work` on the new issue.
+4. **Fix it** — use the Skill tool to invoke `/work` on the new issue ID.
+
+## MANDATORY: Delegation to /work
+
+**You MUST invoke `/work <issue-id>` for the fix. Do NOT implement the fix yourself.**
+
+`/bug` is an investigation workflow, not an implementation workflow. Your job ends at filing a complete beads issue and handing it to `/work`. The `/work` skill (coordinator) handles branching, implementation, review, PR creation, and CI — skipping it means no branch, no PR, no review, and potentially pushing directly to main.
+
+**Never:**
+- Edit production code directly from `/bug`
+- Commit or push changes from `/bug`
+- Skip `/work` because "it's a small fix"
+- Create branches or PRs from `/bug`
