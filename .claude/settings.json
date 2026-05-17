@@ -18,21 +18,7 @@
           },
           {
             "type": "command",
-            "command": "bash .claude/hooks/set-repo-root.sh"
-          },
-          {
-            "type": "command",
             "command": "bash .claude/hooks/mark-stale-worktree.sh"
-          }
-        ]
-      }
-    ],
-    "CwdChanged": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$REPO_ROOT/.claude/hooks/set-repo-root.sh\""
           }
         ]
       }
@@ -42,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$REPO_ROOT/.claude/hooks/worktree-create.sh\""
+            "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/worktree-create.sh\""
           }
         ]
       }
@@ -53,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$REPO_ROOT/.claude/hooks/block-stale-worktree.sh\""
+            "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/block-stale-worktree.sh\""
           }
         ]
       },
@@ -62,11 +48,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$REPO_ROOT/.claude/hooks/block-branch-switch.sh\""
+            "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/block-branch-switch.sh\""
           },
           {
             "type": "command",
-            "command": "bash \"$REPO_ROOT/.claude/hooks/block-hook-bypass.sh\""
+            "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/block-hook-bypass.sh\""
           }
         ]
       },
@@ -75,7 +61,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$REPO_ROOT/.claude/hooks/ask-on-main-edit.sh\""
+            "command": "bash \"$(git rev-parse --path-format=absolute --git-common-dir | sed 's|/\\.git$||')/.claude/hooks/ask-on-main-edit.sh\""
           }
         ]
       }
