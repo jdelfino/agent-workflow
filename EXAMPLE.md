@@ -40,9 +40,9 @@ Node.js REST API. TypeScript, Express, Prisma, PostgreSQL.
 This is a feedback loop. When an agent makes a mistake, you add it here so every future agent reads it before starting work.
 ```
 
-**AGENTS.md** — loaded automatically via a `SessionStart` hook configured in `settings.json`. Every agent session starts knowing what other agents exist and how they interact, without the coordinator needing to pass this manually.
+**CLAUDE.md** — loaded automatically by Claude Code at the start of every session. It carries the generic agent instructions (craftsmanship expectations, beads gotchas, session-completion discipline); the `bd` command reference is primed separately by the beads plugin. Every agent session starts with this context without the coordinator needing to pass it manually.
 
-**Model guidance:** The coordinator runs on Opus 4.6 (orchestration decisions require stronger reasoning). Implementer subagents run on Sonnet 4.6 (implementation work is well-scoped enough for a faster model).
+**Model guidance:** The coordinator runs on Opus 4.8 (orchestration decisions require stronger reasoning). Implementer subagents run on Sonnet 5 (implementation work is well-scoped enough for a faster model).
 
 ---
 
@@ -130,7 +130,7 @@ You pass the epic ID. The coordinator handles sequencing of all subtasks.
 
 Router. Runs `bd show bd-a3f8 --json` and `bd list --parent bd-a3f8 --json` to fetch the epic and all subtasks from beads. Then: load `coordinator/SKILL.md`.
 
-**What runs next:** `coordinator/SKILL.md` (running on Opus 4.6)
+**What runs next:** `coordinator/SKILL.md` (running on Opus 4.8)
 
 The coordinator reads all three tasks and their dependencies. Before anything else, it:
 
@@ -148,7 +148,7 @@ One branch. All three subtasks will accumulate commits here. One PR at the end. 
 
 **Coordinator — Task bd-a3f8.1 (users table)**
 
-**Spawn implementer subagent** (Sonnet 4.6):
+**Spawn implementer subagent** (Sonnet 5):
 
 ```
 Task(
@@ -161,13 +161,12 @@ Task(
 )
 ```
 
-New agent. Clean context window. It wakes up knowing only these four things. `implementer/SKILL.md` loads. Five phases, strictly ordered:
+New agent. Clean context window. It wakes up knowing only these four things. `implementer/SKILL.md` loads. Four phases, in order:
 
-- **Phase 1 — Write failing tests.** Before touching the schema, write tests that describe the desired behavior. They fail because nothing exists yet. No exceptions, ever.
-- **Phase 2 — Implement.** Create the Prisma schema and migration. Make the tests pass.
-- **Phase 3 — Verify.** Run all quality gate commands from `CLAUDE.md`. Zero errors required.
-- **Phase 4 — Coverage review.** Run `git diff --name-only` to see what changed. Map changes to tests. Find gaps (error cases, edge cases). Write missing tests. Rerun quality gates.
-- **Phase 5 — Summary.** Output structured result: what changed, what was tested, any concerns. Return to coordinator.
+- **Phase 1 — Implement & test.** Make the production change (the Prisma schema and migration) and add the test coverage the task specifies — in whatever order is most efficient (tests first to help you design, or implement first and cover after). Gate: every specified test case is implemented and the new tests meaningfully exercise the change.
+- **Phase 2 — Verify.** Run all quality gate commands from `CLAUDE.md`. Zero errors required.
+- **Phase 3 — Coverage audit.** Run `git diff --name-only` to see what changed. Map changes to tests. Find gaps (error cases, edge cases). Write missing tests. Rerun quality gates.
+- **Phase 4 — Summary.** Output structured result: what changed, what was tested, any concerns. Return to coordinator.
 
 **Spawn 3 reviewers in parallel** (skipped for single-file or config-only changes):
 
@@ -252,7 +251,7 @@ Lightweight (small/clear):
 ```
 /plan "JWT authentication"
   → plan.md (router)
-  → planner/SKILL.md (Opus 4.6)
+  → planner/SKILL.md (Opus 4.8)
       Phase 1: explore codebase
       Phase 2: discuss with you → AskUserQuestion
       Phase 3: file beads issues (bd-a3f8.1, .2, .3 with dependencies)
@@ -260,13 +259,13 @@ Lightweight (small/clear):
 
 /work bd-a3f8  (epic ID — coordinator handles all subtasks)
   → work.md (router, fetches epic + subtasks from beads)
-  → coordinator/SKILL.md (Opus 4.6)
+  → coordinator/SKILL.md (Opus 4.8)
       install dependencies
       create ONE worktree + branch: feature/jwt-authentication
       analyze file overlap → run tasks sequentially (chain dependency)
       For each task (in dependency order, same worktree):
-        Task → implementer/SKILL.md (Sonnet 4.6)
-                  write failing tests → implement → verify → coverage review → summary
+        Task → implementer/SKILL.md (Sonnet 5)
+                  implement & test → verify → coverage audit → summary
         Task → reviewer-correctness/SKILL.md  ─┐
         Task → reviewer-tests/SKILL.md         ├─ parallel
         Task → reviewer-architecture/SKILL.md ─┘

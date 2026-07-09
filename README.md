@@ -17,8 +17,8 @@ An agent-friendly development workflow for [Claude Code](https://claude.ai/code)
 
 ## Quick Start
 
-1. Copy `.claude/` and `AGENTS.md` into your project
-2. Replace `CLAUDE.md` with your project-specific version (see the template in this repo)
+1. Copy `.claude/` into your project
+2. Copy `CLAUDE.md` and fill in its **Project-Specific** section (the generic agent instructions above that line are reusable as-is)
 3. Install [beads](https://github.com/jdelfino/beads) (see [installation instructions](https://github.com/jdelfino/beads#installation))
 4. Start working: `/plan "Add user authentication"` then `/work <epic-id>`
 
@@ -63,6 +63,7 @@ Run in a dedicated window. Scans open PRs, merges what's ready (choosing squash 
 | **reviewer-tests** | Reviews test quality — meaningful coverage, not just line count. |
 | **reviewer-architecture** | Reviews for duplication, pattern divergence, structural issues. |
 | **reviewer-plan** | Validates filed issues against codebase before implementation. |
+| **pr-review** | Reviews a team-member PR for regression risk and test coverage; previews findings and asks before posting inline GitHub comments. |
 | **playwright-debugging** | Guide for writing and debugging Playwright E2E tests. |
 
 ### Commands (`.claude/commands/`)
@@ -72,25 +73,26 @@ Run in a dedicated window. Scans open PRs, merges what's ready (choosing squash 
 | `/work <id>` | Invoke coordinator |
 | `/plan <desc>` | Invoke planner |
 | `/merge` | Invoke merge queue |
+| `/pr-review <num>` | Review a team-member PR, post inline comments after your approval |
 | `/bug <desc>` | Investigate and fix a bug |
 | `/fire` | Emergency agent handoff |
 | `/epic <id>` | Redirects to `/work` |
 | `/gh-issue <num>` | Work on a GitHub issue end-to-end |
 
-### Issue Tracking (`AGENTS.md`)
+### Issue Tracking (beads)
 
 Uses [beads](https://github.com/jdelfino/beads) for all task tracking:
 - Dependency-aware (tracks blockers between issues)
 - Git-friendly (auto-syncs to `.beads/issues.jsonl`)
 - Agent-optimized (JSON output, ready work detection)
 
-See `AGENTS.md` for the full beads workflow documentation.
+The full `bd` command reference is primed automatically by the beads plugin at session start (run `bd prime` to see it again). `CLAUDE.md` keeps only the two gotchas worth calling out (self-contained issues, dependency direction).
 
 ### Settings (`.claude/settings.json`)
 
-- Enables the beads MCP plugin
+- Enables the beads MCP plugin (which primes the `bd` workflow at session start)
 - Auto-permissions for `bd` and `git` commands
-- SessionStart hook loads `AGENTS.md` into every conversation
+- SessionStart / worktree hooks for stale-worktree marking and isolation
 
 ## Customization
 

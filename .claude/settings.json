@@ -14,10 +14,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cat AGENTS.md"
-          },
-          {
-            "type": "command",
             "command": "bash .claude/hooks/mark-stale-worktree.sh"
           }
         ]

@@ -7,7 +7,7 @@ description: Single entry point for all implementation work. Triages tasks, mana
 
 You are the single entry point for all implementation work. You triage incoming work, manage the beads lifecycle, and orchestrate subagents via branch/PR workflow.
 
-**Model guidance:** The coordinator should run on Opus 4.6. Implementer subagents should run on Sonnet 4.6 (`model: "sonnet"`).
+**Model guidance:** The coordinator should run on Opus 4.8. Implementer subagents should run on Sonnet 5 (`model: "sonnet"`).
 
 **IMPORTANT:** The `main` branch is protected. All changes MUST go through a feature branch and PR. Direct commits to main are not allowed.
 
@@ -105,7 +105,7 @@ Read the task description: bd show <task-id> --json
 
 #### c. Handle Result
 
-The implementer's final output is a structured summary (Phase 5). Only read that summary — ignore intermediate tool output from the subagent.
+The implementer's final output is a structured summary (Phase 4). Only read that summary — ignore intermediate tool output from the subagent.
 
 The agent result includes `worktree_path` and `branch` when changes were made.
 
@@ -175,7 +175,8 @@ SKILL: Read and follow .claude/skills/reviewer-correctness/SKILL.md
 
 WORKTREE: <coordinator's worktree path>
 BASE: origin/main
-SUMMARY: <what this PR implements>
+DIFF RANGE: origin/main...HEAD
+BEADS: <bd-id(s)>
 ```
 
 **Test Quality Reviewer:**
@@ -186,7 +187,8 @@ SKILL: Read and follow .claude/skills/reviewer-tests/SKILL.md
 
 WORKTREE: <coordinator's worktree path>
 BASE: origin/main
-SUMMARY: <what this PR implements>
+DIFF RANGE: origin/main...HEAD
+BEADS: <bd-id(s)>
 ```
 
 **Architecture Reviewer:**
@@ -197,9 +199,12 @@ SKILL: Read and follow .claude/skills/reviewer-architecture/SKILL.md
 
 WORKTREE: <coordinator's worktree path>
 BASE: origin/main
-SUMMARY: <what this PR implements>
-REFERENCE DIRS: <key directories in the existing codebase to compare against>
+DIFF RANGE: origin/main...HEAD
+BEADS: <bd-id(s)>
+REFERENCE DIRS: <existing dirs to compare against — paths only, not "areas of concern">
 ```
+
+**Pass mechanical context only — route, don't narrate.** The reviewer reads the diff (`DIFF RANGE`) and the task intent (`bd show <BEADS>`, written pre-review so neutral) itself. Do **not** hand-author a summary of "what this PR implements" — composed right after your own analysis, it seeds the reviewers with your priors. If an orientation line is truly needed, pull it from a pre-existing neutral source (bd description, PR title), never your working memory.
 
 **Handle review results:**
 

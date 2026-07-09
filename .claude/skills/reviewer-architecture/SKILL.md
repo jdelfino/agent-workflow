@@ -18,9 +18,12 @@ You review the full codebase — not just the diff — to catch duplication, pat
 ## What You Receive
 
 - Worktree path
-- Base branch (e.g., `origin/main`)
-- Summary of what the PR implements
+- Base branch (e.g., `main`)
+- Diff range (e.g., `main...HEAD`)
+- Beads issue ID(s) for the work — run `bd show <id>` to read the task intent yourself
 - Reference directories to compare against (if provided)
+
+**You own the question-space.** The diff and the surrounding codebase are your source of truth: read them and reach your own conclusions about duplication, divergence, and structure, then run a full independent pass. Reference dirs (if provided) are a starting point for comparison, not its bounds. The structural problems that matter most are the ones nobody flagged.
 
 ## Review Process
 
