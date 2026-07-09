@@ -1,11 +1,11 @@
 ---
 name: implementer
-description: Pure development workflow with test-first development and coverage review. Used by coordinator as a subagent. Never manages beads issues or commits.
+description: Pure development workflow with required test coverage and a coverage audit. Used by coordinator as a subagent. Commits work but never manages beads issues.
 ---
 
 # Implementer
 
-Follow these phases **in strict order**. Do not skip phases. Do not proceed until the current phase's gate is satisfied.
+Work through these phases in order. Don't skip a phase's gate.
 
 This skill covers development only — no issue tracking, no pushes. The coordinator handles those.
 
@@ -17,35 +17,23 @@ This skill covers development only — no issue tracking, no pushes. The coordin
 - No optional chaining on required properties.
 - **Every production code change requires tests.** No exceptions for migrations, refactors, copy-paste, or "just wiring things up." If you wrote or modified production code, you must write tests for it. Never defer tests to a follow-up issue.
 - **Test cases from the issue are your spec.** When the planner has defined concrete test cases on the task, implement those first, then add high-value coverage for gaps.
-- **Delegate quality-gate runs to a test-runner sub-agent.** Verbose test output consumes your context window — see Phase 3.
+- **Delegate quality-gate runs to a test-runner sub-agent.** Verbose test output consumes your context window — see Phase 2.
 - **If your project enforces lint/typecheck via git hooks** (e.g., lefthook, husky), do not re-run those gates manually. Focus on tests in Phase 3 and let the hooks do their job at commit/push time.
 - **If a hook blocks a tool call, stop.** Never work around it with scripts, `sed`, or other indirect tricks. Report the block in your summary and let the coordinator decide how to proceed.
 
-## Phase 1: Write Failing Tests
+## Phase 1: Implement & Test
 
-Write tests for the behavior you are about to change or add. Do this **before** touching any production code.
+Make the production change and add the test coverage the task specifies — in whatever order is most efficient (write tests first if it helps you design, or implement first and cover after). Keep changes minimal and focused on the task.
 
-If the task issue lists planned test cases, implement those first — they are the acceptance criteria. Then add additional high-value tests for gaps you identify (error paths, edge cases).
-
-**This phase is NOT optional.** Common excuses that do NOT exempt you from writing tests:
-- "It's just a migration" — migrated code has new integration points that need testing
-- "It's just wiring up an API client" — API client calls, error handling, and auth headers need tests
-- "The old code didn't have tests" — that's a reason to add them, not skip them
-- "I'll add tests later" — no, tests ship with the code, always
-
-1. Read the relevant production code to understand current behavior
-2. Write new test cases that describe the desired behavior after your change
-3. Verify the new tests fail by delegating to a test-runner sub-agent (see Phase 3)
+1. Read the task description (`bd show <task-id> --json`) and identify the required test cases.
+2. Read the relevant production code to understand current behavior.
+3. Make the change and implement each specified test case. Add targeted tests for gaps you identify (error paths, edge cases) — quality over quantity; a few well-aimed tests beat many shallow ones.
 
 **Test documentation:** Planned and critical tests (integration, e2e, non-obvious unit tests) should include a docstring answering: what contract is verified, why it matters, what breaks if violated. Tests with descriptive names in table-driven style are often self-documenting — use judgment.
 
-**Gate:** Your new tests **fail** (or, for pure deletions/removals, you can write tests asserting the old behavior is gone — these will pass after implementation). If your new tests already pass, they are not testing anything new. Rewrite them.
+**Gate:** Every test case the task specifies is implemented, and your new tests meaningfully exercise the change — a test that would pass even without your production change isn't testing it.
 
-## Phase 2: Implement
-
-Make the production code changes. Keep changes minimal and focused on the task.
-
-## Phase 3: Verify
+## Phase 2: Verify
 
 **Delegate quality-gate runs to a test-runner sub-agent** to preserve your context window. Do NOT run these commands directly with the Bash tool — test output is verbose and wastes context you need for later phases. Use the Task tool with `subagent_type: "Bash"` and `model: "haiku"`:
 
@@ -62,7 +50,9 @@ COMMANDS:
 
 **Gate:** Sub-agent reports PASS. If FAIL, read the error summary, fix the issue, and re-delegate. Only run quality gates directly in your own context if you need to debug a failure interactively.
 
-## Phase 4: Test Coverage Review
+After Phase 2 (Verify) passes, stage and commit all your changes on the current branch.
+
+## Phase 3: Test Coverage Audit
 
 This is an audit, not a formality. Evaluate whether your tests actually cover the changes you made.
 
@@ -100,7 +90,7 @@ Write any missing tests identified above. Then re-run quality gates via the test
 
 **Gate:** All tests pass, including your new coverage additions. If you identified no gaps in Steps 2-3, document your reasoning (e.g., "Changes were purely deletions; added regression tests in Phase 1 confirming removed elements no longer render").
 
-## Phase 5: Summary
+## Phase 4: Summary
 
 **This must be the very last thing you output.** The coordinator reads your result — keep it concise to avoid polluting its context.
 

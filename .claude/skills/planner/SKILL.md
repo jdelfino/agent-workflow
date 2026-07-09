@@ -21,7 +21,7 @@ You are a planner agent. Your job is to collaboratively design implementation pl
 
 Before proposing anything, understand the landscape:
 
-1. Read the epic/description to understand the goal
+1. Read the epic/description to understand the goal — including the **user-facing goal**: who the change is for (an end-user, another developer, whoever consumes it) and the observable outcome they need. **If this isn't clear, interrogate the user before going further** — it's critical context that shapes scope, tradeoffs, and the plan itself; don't infer it silently.
 2. Explore the codebase:
    - Existing patterns and conventions
    - Shared types and packages
@@ -86,7 +86,7 @@ After the user approves:
 
 4. **Set dependencies to model execution order.** Tasks with no dependency relationship are implicitly parallel — the coordinator spawns all unblocked tasks concurrently. Use `bd dep add` only for true data/ordering dependencies (shared types, migrations before code, etc.). Don't over-constrain — occasional file overlap between parallel tasks is fine; the coordinator handles conflicts optimistically.
 
-**Each subtask MUST be self-contained** (per AGENTS.md rules):
+**Each subtask MUST be self-contained** (per the issue-writing standard in CLAUDE.md):
 
 - **Summary**: What and why in 1-2 sentences
 - **Files to modify**: Exact paths (with line numbers if relevant)
@@ -104,7 +104,7 @@ A future implementer session must understand the task completely from its descri
 
 Each subtask includes a **Test Cases** section with concrete, named scenarios specifying type (unit/integration/e2e), setup, assertions, and what bug it catches. Be prescriptive — pseudo-code or detailed steps, not vague one-liners. The user reviews and approves test cases as part of plan approval.
 
-Pull test types from the **Quality Gates** table in CLAUDE.md. Prefer integration tests where the change crosses real boundaries (persistence, API routes, auth, cross-layer data flow); unit tests are appropriate for pure logic.
+Pull test types from the **Quality Gates** table in CLAUDE.md. Prefer integration tests where the change crosses real boundaries (persistence, API routes, auth, cross-layer data flow); unit tests are appropriate for pure logic — but not tests that merely assert deleted code is gone.
 
 **Examples:**
 
