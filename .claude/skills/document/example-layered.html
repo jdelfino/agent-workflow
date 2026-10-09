@@ -1,0 +1,792 @@
+<title>Entity identity</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+<style>
+  /* Same token set as "Building a Profile" — read off theconspectus.com's
+     computed tokens (light) and packages/ui globals.css .dark block (dark),
+     so the pages in this family read as one system. */
+  :root {
+    color-scheme: light;
+    --canvas:  lab(96.2055% -3.42414 1.67267);
+    --surface: lab(99.4745% -1.24386 0.607586);
+    --panel:   rgb(248, 247, 244);
+    --muted:   lab(93.1198% -2.53272 -1.06349);
+    --border:  lab(88.4861% -3.28311 -2.6395);
+    --ink:     lab(11.8507% -3.10925 -7.0487);
+    --ink-soft: rgb(71, 77, 84);
+    --ink-faint: rgb(132, 139, 146);
+    --coral:   lab(56.6024% 54.7602 43.6232);
+    --coral-deep: lab(48% 48 38);
+    --ok:   lab(45% -22 14);
+    --bad:  lab(46% 52 30);
+    --sans: Inter, "Inter Fallback", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+    
+  #dither { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+  #halo {
+    position: fixed; top: 0; left: 0; z-index: 0; pointer-events: none;
+    opacity: 0; transition: opacity 0.25s ease; will-change: transform;
+  }
+  #halo.on { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { #halo { display: none; } }
+  .wrap { position: relative; z-index: 1; max-width: 800px; margin-inline: auto; padding: 0 36px 128px; }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--canvas); color: var(--ink);
+    font: 400 16px/1.65 var(--sans); letter-spacing: -0.006em;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 22px 0 0; }
+  .brand { display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 500; letter-spacing: -0.015em; }
+  .brand img { width: 19px; height: 19px; display: block; }
+  .ghost { font: 500 13px/1 var(--sans); background: none; border: 0; color: var(--ink-faint); border-radius: 6px; padding: 8px 10px; cursor: pointer; }
+  .ghost:hover { background: var(--muted); color: var(--ink); }
+  .ghost:focus-visible { outline: 2px solid var(--ink-soft); outline-offset: 1px; }
+
+  header.hero { padding: 76px 0 0; }
+  .kicker { font-size: 13px; color: var(--ink-faint); margin: 0 0 16px; }
+  h1 { font-size: clamp(34px, 5.4vw, 46px); font-weight: 500; letter-spacing: -0.028em; line-height: 1.08; margin: 0 0 18px; text-wrap: balance; }
+  .standfirst { font-size: 18px; line-height: 1.6; color: var(--ink-soft); margin: 0 0 6px; max-width: 58ch; }
+
+  h2 { font-size: clamp(22px, 2.9vw, 25px); font-weight: 400; letter-spacing: -0.024em; line-height: 1.2; margin: 0; text-wrap: balance; }
+  .lede { color: var(--ink-soft); font-size: 15px; margin: 0 0 4px; max-width: 60ch; }
+  h3 { font-size: 17.5px; font-weight: 600; letter-spacing: -0.014em; margin: 34px 0 10px; }
+  h3:first-child { margin-top: 0; }
+  p { max-width: 66ch; }
+  .indent { padding-left: 26px; margin-top: 26px; }
+  strong { font-weight: 500; }
+
+  details.block { margin-top: 48px; }
+  details.block > summary { padding: 0; gap: 13px; align-items: baseline; }
+  details.block[open] > summary { margin-bottom: 14px; }
+  summary { list-style: none; cursor: pointer; display: flex; border-radius: 6px; }
+  summary::-webkit-details-marker { display: none; }
+  summary:focus-visible { outline: 2px solid var(--ink-soft); outline-offset: 3px; }
+  details.block > summary:hover h2 { color: var(--ink-soft); }
+  .tri { flex: none; color: var(--ink-faint); font-size: 11px; line-height: 1; position: relative; top: -4px; width: 11px; text-align: center; transition: transform 0.13s ease; }
+  details[open] > summary .tri { transform: rotate(90deg); }
+
+  details.sub { margin-top: 30px; }
+  details.sub > summary { gap: 10px; align-items: baseline; }
+  details.sub > summary h3 { margin: 0; font-size: 17.5px; font-weight: 600; letter-spacing: -0.014em; }
+  details.sub[open] > summary { margin-bottom: 14px; }
+  details.sub > summary:hover h3 { color: var(--ink-soft); }
+  details.sub .body { padding-left: 21px; }
+  details.sub .body > :first-child { margin-top: 0; }
+
+  ol.steps { list-style: none; counter-reset: st; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr; gap: 30px; }
+  ol.steps > li { counter-increment: st; display: grid; grid-template-columns: 30px 1fr; gap: 16px; }
+  ol.steps > li::before { content: counter(st); font-size: 14px; color: var(--ink-faint); line-height: 1.7; font-variant-numeric: tabular-nums; }
+  ol.steps h4 { margin: 0 0 6px; font-size: 17px; font-weight: 500; letter-spacing: -0.014em; }
+  ol.steps p { margin: 0 0 10px; font-size: 15px; line-height: 1.6; color: var(--ink-soft); max-width: 60ch; }
+
+  pre {
+    background: var(--panel); border-radius: 8px; padding: 13px 15px; margin: 10px 0;
+    overflow-x: auto; font: 400 12.5px/1.6 var(--mono); color: var(--ink); max-width: 100%;
+  }
+  code { font: 400 0.92em/1.5 var(--mono); }
+  p code, li code, td code { background: var(--muted); border-radius: 4px; padding: 1px 5px; }
+  .type { background: var(--panel); border-radius: 8px; padding: 12px 15px; margin: 10px 0;
+          font-size: 15px; font-weight: 500; letter-spacing: -0.01em; }
+  .type span { display: block; font-size: 12px; font-weight: 400; color: var(--ink-faint); letter-spacing: 0; margin-bottom: 4px; }
+  .hear { font-size: 14px; color: var(--ink-faint); margin: 8px 0 0; max-width: 60ch; }
+
+  .rows { display: grid; gap: 22px; }
+  .row .label { font-size: 13px; color: var(--ink-faint); margin-bottom: 3px; }
+  .row .value { font-size: 16px; margin: 0; max-width: 64ch; }
+
+  .scroller { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; min-width: 440px; }
+  th { text-align: left; font-size: 13px; font-weight: 500; color: var(--ink-faint); padding: 0 22px 12px 0; white-space: nowrap; }
+  td { padding: 12px 22px 12px 0; vertical-align: baseline; }
+  tbody tr + tr td { padding-top: 15px; }
+  td .note { display: block; font-size: 13px; color: var(--ink-faint); margin-top: 2px; max-width: 46ch; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.yes { color: var(--ok); font-weight: 500; white-space: nowrap; }
+  td.no { color: var(--coral-deep); font-weight: 500; white-space: nowrap; }
+  tr.best td { font-weight: 500; }
+
+  /* Status of a claim on this page. Internal-only furniture: it exists so the
+     client version can be written deliberately rather than by trusting that
+     every sentence here already describes something running in production. */
+  .st { display: inline-block; font: 500 10.5px/1.5 var(--sans); letter-spacing: 0.07em;
+        text-transform: uppercase; border-radius: 4px; padding: 2px 7px; white-space: nowrap;
+        border: 1px solid var(--border); color: var(--ink-faint); vertical-align: 2px; }
+  .st.live { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 38%, transparent); }
+  .st.soon { color: var(--ink-soft); }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin: 14px 0 0;
+            font-size: 13.5px; color: var(--ink-faint); }
+  .legend span.t { color: var(--ink-soft); }
+
+  /* Six layers, each a station on one line. A card per layer would make them
+     peers; the rules keep them a sequence you read downward. Each one folds,
+     so the six titles can be read as a list before any of them is opened. */
+  details.layer { padding: 7px 0; margin: 0; }
+  details.layer > summary { gap: 11px; align-items: baseline; flex-wrap: wrap; }
+  details.layer > summary:hover h3 { color: var(--ink-soft); }
+  .layer .n { font-size: 12px; color: var(--ink-faint); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+  details.layer > summary h3 { margin: 0; font-size: 17px; font-weight: 500; letter-spacing: -0.014em; }
+  details.layer .body { padding-left: 24px; }
+  .layer p { margin: 9px 0 0; font-size: 15px; line-height: 1.6; color: var(--ink-soft); }
+  details.layer .body > :first-child { margin-top: 3px; }
+  .layer .without { margin-top: 10px; font-size: 14px; line-height: 1.6; color: var(--ink); }
+  .layer .without b { font-weight: 500; color: var(--coral-deep); }
+  .layer .ev { margin-top: 8px; font-size: 13px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+  /* The knob line: what about this layer is a setting rather than a fact.
+     Only on the layers where something really is swappable, so the page does
+     not grow a template rhythm. */
+  .layer .knob { margin-top: 11px; font-size: 14px; line-height: 1.6; color: var(--ink-soft); max-width: 66ch; }
+  .layer .knob > span { display: inline-block; font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase;
+                        color: var(--ink-faint); border: 1px solid var(--border); border-radius: 4px;
+                        padding: 2px 6px; margin-right: 9px; position: relative; top: -1px; }
+  .layer .knob b { color: var(--ink); font-weight: 500; }
+
+  /* The half-heading that splits the stack in two. A rule with a word on it,
+     not a card, because the two halves are one sequence read downward. */
+  .half { display: flex; align-items: baseline; gap: 14px; margin: 38px 0 4px; }
+  .half:first-of-type { margin-top: 22px; }
+  .half .t { font: 500 12px/1 var(--sans); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint); white-space: nowrap; }
+  .half .r { flex: 1; height: 1px; background: var(--border); }
+  .half-note { font-size: 13.5px; color: var(--ink-faint); margin: 0 0 6px; max-width: 62ch; }
+
+  /* Two answers from one model at one instant, side by side because the
+     difference between them is the argument. */
+  .vs { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 16px 0 0; }
+  .vs > div { background: var(--panel); border-radius: 10px; padding: 15px 17px; }
+  .vs .cap { font-size: 12px; color: var(--ink-faint); margin: 0 0 3px; }
+  .vs .big { font-size: 32px; font-weight: 500; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; margin: 0 0 2px; line-height: 1.1; }
+  .vs .sub { font-size: 13px; color: var(--ink-faint); margin: 0 0 11px; }
+  .vs blockquote { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink-soft); }
+  .vs blockquote + blockquote { margin-top: 8px; }
+  @media (max-width: 620px) { .vs { grid-template-columns: 1fr; } }
+
+  .note-card { background: var(--panel); border-radius: 10px; padding: 15px 17px; margin: 18px 0 0; }
+  .note-card p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink-soft); max-width: 60ch; }
+  .note-card p + p { margin-top: 9px; }
+  .note-card b { color: var(--ink); font-weight: 500; }
+
+  figure.dia { margin: 20px 0 0; }
+  figure.dia svg { display: block; min-width: 520px; width: 100%; height: auto; }
+  figure figcaption { font-size: 13px; color: var(--ink-faint); margin-top: 10px; max-width: 62ch; }
+
+  /* The schematic. Monospace, hairline, labels sitting in a gap in the rule
+     they belong to — the same drawing convention as the product diagram on
+     theconspectus.com, so the two read as one hand. */
+  .ent svg { min-width: 620px; }
+  .ent text { font-family: var(--mono); }
+  .ent .bx { fill: none; stroke: var(--border); stroke-width: 1; }
+  .ent .lb { font-size: 11px; fill: var(--ink-faint); letter-spacing: 0.08em; }
+  .ent .lb.acc { fill: var(--coral-deep); }
+  .ent .it { font-size: 12px; fill: var(--ink-soft); }
+  .ent .it.out { fill: var(--ink); }
+  .ent .it.acc { fill: var(--coral-deep); }
+  .ent .ar { stroke: var(--ink-faint); stroke-width: 1; fill: none; }
+  .ent .cap { font-size: 11px; fill: var(--ink-faint); font-family: var(--sans); }
+  .ent .bx.acc { stroke: var(--coral-deep); }
+
+  /* Rehearsal answers: the question in the client's words, the answer in ours. */
+  .qa { display: grid; gap: 26px; margin-top: 4px; }
+  .qa .q { font-size: 16px; font-weight: 500; letter-spacing: -0.012em; margin: 0 0 8px; color: var(--ink); }
+  .qa .a { font-size: 15px; line-height: 1.62; color: var(--ink-soft); margin: 0; max-width: 62ch; }
+  .qa .a + .a { margin-top: 9px; }
+  .qa .a b { color: var(--ink); font-weight: 500; }
+
+  a.inline { color: var(--coral-deep); text-decoration: none; }
+  a.inline:hover { text-decoration: underline; }
+
+  .say { border-left: 2px solid var(--coral); padding-left: 15px; margin: 20px 0 0; }
+  .say .lab { font-size: 12.5px; font-weight: 500; color: var(--coral-deep); margin: 0 0 4px; letter-spacing: 0.01em; }
+  .say p { font-size: 16px; line-height: 1.6; margin: 0; max-width: 60ch; }
+  .say p + p { margin-top: 10px; }
+  .say cite { display: block; font-style: normal; font-size: 13px; color: var(--ink-faint); margin-top: 10px; }
+
+  footer { margin-top: 90px; font-size: 14px; color: var(--ink-faint); max-width: 62ch; }
+  footer p { max-width: 62ch; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  @media (max-width: 600px) {
+    .wrap { padding: 0 20px 80px; }
+    .indent { padding-left: 14px; }
+    ol.steps > li { grid-template-columns: 22px 1fr; gap: 12px; }
+  }
+</style>
+
+<style>
+  section.block { margin-top: 52px; }
+  section.block > h2 { margin-bottom: 14px; }
+  .lead { font-size: 17px; line-height: 1.6; color: var(--ink); max-width: 62ch; margin: 18px 0 0; }
+  .core { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: baseline; margin: 22px 0 0; padding: 14px 0 12px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); font: 400 12.5px/1.5 var(--mono); color: var(--ink-faint); letter-spacing: 0.02em; }
+  .core .cap { width: 100%; font: 400 11px/1.4 var(--sans); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 2px; }
+  .core .on { color: var(--coral-deep); }
+  .core .on::after { content: " \00b7"; color: var(--ink-faint); }
+  .tl { display: grid; gap: 18px; margin-top: 16px; }
+  .tl .d { font-size: 13px; color: var(--ink-faint); font-variant-numeric: tabular-nums; margin-bottom: 4px; }
+  .tl .d b { color: var(--ink); font-weight: 500; }
+  .tl .w { font-size: 15px; line-height: 1.58; color: var(--ink); max-width: 68ch; margin: 0; }
+  .tl .w:first-letter { }
+  table.wide td, table.wide th { padding-right: 16px; }
+  td.mono { font: 400 12.5px/1.5 var(--mono); color: var(--ink-soft); white-space: nowrap; }
+  td.nw { white-space: nowrap; }
+  tr.mark td { color: var(--coral-deep); }
+  .cap-line { font-size: 13.5px; color: var(--ink-faint); margin: 10px 0 0; max-width: 66ch; }
+  .ev td { font-size: 14px; }
+  .ev td.q { font-style: normal; color: var(--ink); max-width: 46ch; }
+  .files { display: grid; gap: 12px; margin-top: 14px; }
+  .files .f { display: grid; grid-template-columns: 190px 1fr; gap: 14px; font-size: 14.5px; }
+  .files .f code { font-size: 12.5px; }
+  .files .f span { color: var(--ink-soft); }
+  @media (max-width: 600px) { .files .f { grid-template-columns: 1fr; gap: 2px; } }
+  @media print {
+    #dither, #halo, .ghost { display: none !important; }
+    body { background: #fff; color: #111; }
+    .wrap { padding: 0 0 24px; max-width: none; }
+    section.block { break-inside: auto; }
+    h2, h3 { break-after: avoid; }
+    tr, .tl > div, .row { break-inside: avoid; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+
+<canvas id="dither" aria-hidden="true"></canvas>
+<canvas id="halo" aria-hidden="true"></canvas>
+<style>
+  body { background: var(--canvas); }
+  .wrap { max-width: 820px; }
+  header.hero { padding: 64px 0 8px; }
+  h1 { font-size: 44px; margin-bottom: 8px; }
+  section.block { margin-top: 0; padding: 44px 0 4px; border-top: 1px solid var(--border); }
+  header.hero + section.block { border-top: 0; }
+  section.block > h2 { margin-bottom: 16px; }
+  section.block > p { font-size: 16.5px; line-height: 1.7; }
+  .stack { display: grid; gap: 7px; margin: 30px 0 10px; justify-items: center; }
+  .stack div { border: 1px solid var(--border); border-radius: 9px; padding: 12px 16px; background: var(--surface); text-align: center; font-size: 15px; box-shadow: 0 1px 2px rgb(0 0 0 / 0.03); }
+  .stack div b { font-weight: 500; display: block; }
+  .stack div i { font-style: normal; color: var(--ink-faint); font-size: 13.5px; }
+  .stack div.top5 { border-color: var(--coral); }
+  .kinds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 16px 0 6px; }
+  .kinds > div { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 15px; }
+  .kinds .n { font-size: 12px; color: var(--ink-faint); margin: 0 0 6px; letter-spacing: 0.02em; }
+  .kinds h4 { font-size: 15px; font-weight: 500; margin: 0 0 6px; letter-spacing: -0.01em; line-height: 1.35; }
+  .kinds p { font-size: 13.5px; line-height: 1.55; color: var(--ink-soft); margin: 0; }
+  @media (max-width: 640px) { .kinds { grid-template-columns: 1fr; } }
+  .stat { display: flex; gap: 18px; align-items: baseline; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin: 18px 0 4px; }
+  .stat .big { font-size: 30px; font-weight: 500; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .stat p { margin: 0; font-size: 14.5px; line-height: 1.6; color: var(--ink-soft); }
+  .tl { position: relative; gap: 0; margin-top: 18px; padding-left: 22px; }
+  .tl::before { content: ""; position: absolute; left: 5px; top: 8px; bottom: 8px; width: 1px; background: var(--border); }
+  .tl > div { position: relative; padding: 0 0 18px; }
+  .tl > div::before { content: ""; position: absolute; left: -21px; top: 6px; width: 9px; height: 9px; border-radius: 50%; background: var(--ink); }
+  .tl > div.out::before { background: var(--canvas); border: 1px solid var(--ink-faint); width: 7px; height: 7px; }
+  .tl > div.out .w { color: var(--ink-faint); }
+  .tl .cut { text-decoration: underline; color: var(--ink-faint); }
+  .scroller { margin-top: 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 6px 18px; }
+  .scroller table td { border-top: 1px solid var(--border); }
+  .scroller tbody tr:first-child td { border-top: 0; }
+  .scroller tbody tr + tr td { padding-top: 12px; }
+  .scroller th { padding-top: 12px; }
+  .scroller tr.total td { font-weight: 500; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px 22px; margin-top: 18px; }
+  .card h3 { margin: 0 0 4px; }
+  .card .rows { gap: 16px; }
+  .card .row .value { font-size: 15.5px; }
+  .tag { display: inline-block; font-size: 12px; border-radius: 999px; padding: 2px 9px; margin-left: 8px; vertical-align: 2px; font-weight: 500; }
+  .tag.his { color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+  .tag.against { color: var(--bad); background: color-mix(in srgb, var(--bad) 11%, transparent); }
+  .tag.half { color: rgb(150, 105, 20); background: rgb(240, 200, 100, 0.22); }
+  .ladder { display: grid; gap: 0; margin-top: 18px; }
+  .ladder > div { display: grid; grid-template-columns: 34px 1fr; gap: 14px; padding: 12px 0; border-top: 1px solid var(--border); }
+  .ladder > div:first-child { border-top: 0; }
+  .ladder .num { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); display: grid; place-items: center; font-size: 13px; font-weight: 500; }
+  .ladder .lab { font-size: 13px; color: var(--ink-faint); margin: 2px 0 2px; }
+  .ladder p { margin: 0; font-size: 15px; line-height: 1.6; }
+  .pull { font-size: 16.5px; line-height: 1.65; margin-top: 18px; padding: 16px 18px; background: var(--panel); border-radius: 10px; }
+  a { color: var(--ink); text-decoration-color: var(--ink-faint); text-underline-offset: 2px; }
+  .row, .stack, table, .card, .kinds > div, .ladder > div, .stat { break-inside: avoid; }
+  h2, h3 { break-after: avoid; }
+  .edit-bar { position: fixed; right: 18px; bottom: 18px; z-index: 5; display: flex; gap: 8px; align-items: center; }
+  .edit-bar button { font: 500 13px/1 var(--sans); padding: 9px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); cursor: pointer; box-shadow: 0 1px 2px rgb(0 0 0 / 0.06); }
+  .edit-bar button:hover { background: var(--muted); }
+  .edit-bar button.on { border-color: var(--coral); color: var(--coral-deep); }
+  .edit-bar .msg { font-size: 12px; color: var(--ink-faint); }
+  .wrap[contenteditable="true"] { outline: none; caret-color: var(--coral-deep); }
+  @media print { .edit-bar { display: none !important; } }
+  ul.tests { margin: 0; padding-left: 18px; }
+  ul.tests li { margin: 4px 0; }
+</style>
+<div class="wrap">
+  <div class="top">
+    <div class="brand"><img src="data:image/png;base64,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" alt=""> Conspectus</div>
+  </div>
+  <!-- document skill: page-level additions. One update color: class "new" marks only the latest update; strip it from older text on every update. -->
+  <style>
+    td .note { white-space: normal; }
+    /* One highlight color for the latest update only. Older text has no class and renders in the normal ink. */
+    .new{--uc:rgb(0,104,150)}
+    .new { color: var(--uc); }
+    .new :is(p,td,h3,h4,li,i,b,.note,.w) { color: var(--uc); }
+    ol.steps p.new { color: var(--uc); }
+    .new ol.steps :is(p,h4) { color: var(--uc); }
+    ol.steps.beads p { margin: 4px 0; }
+    .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: 0; background: var(--uc); }
+    ol.steps.tight { gap: 10px; } ol.steps.tight p { margin: 0; }
+    ul.plain { margin: 12px 0 0; padding-left: 18px; max-width: 64ch; } ul.plain li { margin: 6px 0; font-size: 15.5px; line-height: 1.6; }
+    details.agents { margin-top: 64px; border-top: 1px solid var(--border); padding-top: 26px; }
+    details.agents > summary { gap: 12px; align-items: baseline; }
+    details.agents > summary h2 { font-size: 21px; }
+    details.agents > summary .hint { font-size: 13px; color: var(--ink-faint); }
+    details.agents[open] > summary { margin-bottom: 8px; }
+    .agents h3 { margin-top: 34px; }
+    .agents p, .agents li { font-size: 14.5px; line-height: 1.6; }
+    .agents table { font-size: 14px; }
+    .agents ul { padding-left: 18px; max-width: 70ch; } .agents li { margin: 5px 0; }
+  </style>
+  <style>
+    table.lev td { vertical-align: top; }
+    .by h3 { margin-top: 26px; }
+  </style>
+  <style>
+    .ent .ar.acc { stroke: var(--coral-deep); }
+    .ent .cap.acc { fill: var(--coral-deep); }
+    .layer h3 { margin: 40px 0 6px; }
+    .layer p { max-width: 64ch; }
+  </style>
+  <header class="hero">
+    <p class="kicker">Draft 2 &middot; 9 Oct 2026 &middot; owner Long &middot; internal working document &middot; <a class="inline" href="entity-identity-canonical-2026-10-09.draft1.html">draft 1 (frozen)</a></p>
+    <h1>How Conspectus knows who a person is</h1>
+    <p class="standfirst">One picture, built in five layers: how an article gets tied to a person, where that person's Wikidata ID can live, and why the Warsh update read the one place it was missing.</p>
+    <div class="legend">
+      <span><span class="st live">Have</span> <span class="t">done or checked</span></span>
+      <span><span class="st soon">To do</span> <span class="t">still to build</span></span>
+      <span><span class="st">Ask</span> <span class="t">waiting on a person</span></span>
+      <span class="new"><span class="sw"></span> update 2, 9 Oct: rebuilt around one growing diagram; Warsh is fixable without a backfill</span>
+    </div>
+  </header>
+
+  <section class="block">
+    <h2>Why</h2>
+    <p>On 8 Oct Blake asked for 17 days of news on Kevin Warsh and got "Nothing new since the latest snapshot", even though 378 articles tagged to Warsh from those days were already stored. The same lookup fails for 26 of the 73 people on daily updates, and it fails silently. <span class="st live">Have</span></p>
+  </section>
+
+  <section class="block new">
+    <h2>How it works: one picture, five layers</h2>
+    <p class="new"><b>Orange marks what each layer adds. Read top to bottom and the picture grows.</b></p>
+
+    <div class="layer">
+    <h3 class="new">Layer 1. An article gets tied to a person by spelling</h3>
+    <p class="new">A reader goes through every incoming article, pulls out the names, and looks each one up in the news list by spelling (Greg built this in June). When a name keeps turning up and has no record yet, the system makes one by itself; Simon added that in mid-September. Warsh's record was made this way on 17 Sep, and it holds 15 spellings of his name, from "Kevin M. Warsh" to Arabic and Russian forms. 816 articles are attached to it.</p>
+    <figure class="dia ent"><div class="scroller" style="background:none;border:0;padding:0">
+        <svg viewBox="0 0 760 100" role="img" aria-label="Articles to reader to news record">
+        <defs><marker id="ahL1" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 z" style="fill:var(--ink-faint)"/></marker></defs>
+        <rect class="bx acc" x="10" y="20" width="170" height="64" rx="6"/>
+        <text class="lb acc" x="22" y="42">ARTICLES</text>
+        <text class="it acc" x="22" y="62">news, posts, filings</text>
+        <rect class="bx acc" x="200" y="20" width="170" height="64" rx="6"/>
+        <text class="lb acc" x="212" y="42">READER</text>
+        <text class="it acc" x="212" y="62">finds names in text</text>
+        <text class="it acc" x="212" y="79">matches by spelling</text>
+        <rect class="bx acc" x="390" y="20" width="170" height="64" rx="6"/>
+        <text class="lb acc" x="402" y="42">NEWS RECORD</text>
+        <text class="it acc" x="402" y="62">Kevin Warsh</text>
+        <text class="it acc" x="402" y="79">816 articles</text>
+        <line class="ar acc" x1="180" y1="52" x2="198" y2="52" marker-end="url(#ahL1)"/>
+        <line class="ar acc" x1="370" y1="52" x2="388" y2="52" marker-end="url(#ahL1)"/>
+        </svg>
+      </div></figure>
+
+    <h3 class="new">Layer 2. When the record is made, a machine guesses the Wikidata ID</h3>
+    <p class="new">We keep our own copy of Wikidata. When the system makes a new record, it looks the name up in that copy and notes the ID it found. Nobody checks it, so it is a <i>guess</i>, but it is how every auto-made record is born: all 22,329 active links carry one. We do this today. For Warsh the guess is Q6397725, the same ID a person picked when we built his profile.</p>
+    <figure class="dia ent"><div class="scroller" style="background:none;border:0;padding:0">
+        <svg viewBox="0 0 760 205" role="img" aria-label="Adds Wikidata copy and the machine guess">
+        <defs><marker id="ahL2" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 z" style="fill:var(--ink-faint)"/></marker></defs>
+        <rect class="bx" x="10" y="20" width="170" height="64" rx="6"/>
+        <text class="lb" x="22" y="42">ARTICLES</text>
+        <text class="it" x="22" y="62">news, posts, filings</text>
+        <rect class="bx" x="200" y="20" width="170" height="64" rx="6"/>
+        <text class="lb" x="212" y="42">READER</text>
+        <text class="it" x="212" y="62">finds names in text</text>
+        <text class="it" x="212" y="79">matches by spelling</text>
+        <rect class="bx" x="390" y="20" width="170" height="64" rx="6"/>
+        <text class="lb" x="402" y="42">NEWS RECORD</text>
+        <text class="it" x="402" y="62">Kevin Warsh</text>
+        <text class="it" x="402" y="79">816 articles</text>
+        <rect class="bx acc" x="200" y="130" width="170" height="64" rx="6"/>
+        <text class="lb acc" x="212" y="152">WIKIDATA COPY</text>
+        <text class="it acc" x="212" y="172">kept on our side</text>
+        <text class="it acc" x="212" y="189">checked at creation</text>
+        <rect class="bx acc" x="390" y="130" width="170" height="56" rx="6"/>
+        <text class="lb acc" x="402" y="152">MACHINE GUESS</text>
+        <text class="it acc" x="402" y="172">Warsh: Q6397725</text>
+        <line class="ar" x1="180" y1="52" x2="198" y2="52" marker-end="url(#ahL2)"/>
+        <line class="ar" x1="370" y1="52" x2="388" y2="52" marker-end="url(#ahL2)"/>
+        <line class="ar acc" x1="475" y1="84" x2="475" y2="128" marker-end="url(#ahL2)"/>
+        <line class="ar acc" x1="370" y1="158" x2="388" y2="158" marker-end="url(#ahL2)"/>
+        </svg>
+      </div></figure>
+
+    <h3 class="new">Layer 3. Two more places an ID can live</h3>
+    <p class="new">The <b>old ID column</b> is one blank slot on each record, filled by a one-time seed for about 395 records and barely touched since. It sometimes holds the wrong ID: Apple's points at the fruit. <b>Confirmed IDs</b> is Simon's newer list, where each ID decision is its own row: proposed by a machine, then confirmed or rejected by a person on the record's admin page. It holds 161 confirmed IDs today, 118 of them for people. Warsh has neither: his old column is blank and nobody has confirmed him.</p>
+    <figure class="dia ent"><div class="scroller" style="background:none;border:0;padding:0">
+        <svg viewBox="0 0 760 350" role="img" aria-label="Adds old ID column and confirmed IDs">
+        <defs><marker id="ahL3" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 z" style="fill:var(--ink-faint)"/></marker></defs>
+        <rect class="bx" x="10" y="20" width="170" height="64" rx="6"/>
+        <text class="lb" x="22" y="42">ARTICLES</text>
+        <text class="it" x="22" y="62">news, posts, filings</text>
+        <rect class="bx" x="200" y="20" width="170" height="64" rx="6"/>
+        <text class="lb" x="212" y="42">READER</text>
+        <text class="it" x="212" y="62">finds names in text</text>
+        <text class="it" x="212" y="79">matches by spelling</text>
+        <rect class="bx" x="390" y="20" width="170" height="64" rx="6"/>
+        <text class="lb" x="402" y="42">NEWS RECORD</text>
+        <text class="it" x="402" y="62">Kevin Warsh</text>
+        <text class="it" x="402" y="79">816 articles</text>
+        <rect class="bx" x="200" y="130" width="170" height="64" rx="6"/>
+        <text class="lb" x="212" y="152">WIKIDATA COPY</text>
+        <text class="it" x="212" y="172">kept on our side</text>
+        <text class="it" x="212" y="189">checked at creation</text>
+        <rect class="bx" x="390" y="130" width="170" height="56" rx="6"/>
+        <text class="lb" x="402" y="152">MACHINE GUESS</text>
+        <text class="it" x="402" y="172">Warsh: Q6397725</text>
+        <rect class="bx acc" x="390" y="206" width="170" height="56" rx="6"/>
+        <text class="lb acc" x="402" y="228">OLD ID COLUMN</text>
+        <text class="it acc" x="402" y="248">Warsh: blank</text>
+        <rect class="bx acc" x="390" y="282" width="170" height="56" rx="6"/>
+        <text class="lb acc" x="402" y="304">CONFIRMED IDS</text>
+        <text class="it acc" x="402" y="324">Warsh: none yet</text>
+        <line class="ar" x1="180" y1="52" x2="198" y2="52" marker-end="url(#ahL3)"/>
+        <line class="ar" x1="370" y1="52" x2="388" y2="52" marker-end="url(#ahL3)"/>
+        <line class="ar" x1="475" y1="84" x2="475" y2="128" marker-end="url(#ahL3)"/>
+        <line class="ar" x1="370" y1="158" x2="388" y2="158" marker-end="url(#ahL3)"/>
+        </svg>
+      </div></figure>
+
+    <h3 class="new">Layer 4. One shared rule picks the answer</h3>
+    <p class="new">With three places to look, someone has to decide which one wins. Simon wrote that decision once, in one file: a confirmed ID first, then the old column, then the machine's guess. His code says that any second copy of this rule is a bug. Run on Warsh, the rule reaches step 3 and answers Q6397725.</p>
+    <figure class="dia ent"><div class="scroller" style="background:none;border:0;padding:0">
+        <svg viewBox="0 0 760 350" role="img" aria-label="Adds the shared ID rule">
+        <defs><marker id="ahL4" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 z" style="fill:var(--ink-faint)"/></marker></defs>
+        <rect class="bx" x="10" y="20" width="170" height="64" rx="6"/>
+        <text class="lb" x="22" y="42">ARTICLES</text>
+        <text class="it" x="22" y="62">news, posts, filings</text>
+        <rect class="bx" x="200" y="20" width="170" height="64" rx="6"/>
+        <text class="lb" x="212" y="42">READER</text>
+        <text class="it" x="212" y="62">finds names in text</text>
+        <text class="it" x="212" y="79">matches by spelling</text>
+        <rect class="bx" x="390" y="20" width="170" height="64" rx="6"/>
+        <text class="lb" x="402" y="42">NEWS RECORD</text>
+        <text class="it" x="402" y="62">Kevin Warsh</text>
+        <text class="it" x="402" y="79">816 articles</text>
+        <rect class="bx" x="200" y="130" width="170" height="64" rx="6"/>
+        <text class="lb" x="212" y="152">WIKIDATA COPY</text>
+        <text class="it" x="212" y="172">kept on our side</text>
+        <text class="it" x="212" y="189">checked at creation</text>
+        <rect class="bx" x="390" y="130" width="170" height="56" rx="6"/>
+        <text class="lb" x="402" y="152">MACHINE GUESS</text>
+        <text class="it" x="402" y="172">Warsh: Q6397725</text>
+        <rect class="bx" x="390" y="206" width="170" height="56" rx="6"/>
+        <text class="lb" x="402" y="228">OLD ID COLUMN</text>
+        <text class="it" x="402" y="248">Warsh: blank</text>
+        <rect class="bx" x="390" y="282" width="170" height="56" rx="6"/>
+        <text class="lb" x="402" y="304">CONFIRMED IDS</text>
+        <text class="it" x="402" y="324">Warsh: none yet</text>
+        <rect class="bx acc" x="580" y="190" width="170" height="80" rx="6"/>
+        <text class="lb acc" x="592" y="212">SHARED ID RULE</text>
+        <text class="it acc" x="592" y="232">1 confirmed</text>
+        <text class="it acc" x="592" y="249">2 else old column</text>
+        <text class="it acc" x="592" y="266">3 else machine guess</text>
+        <line class="ar" x1="180" y1="52" x2="198" y2="52" marker-end="url(#ahL4)"/>
+        <line class="ar" x1="370" y1="52" x2="388" y2="52" marker-end="url(#ahL4)"/>
+        <line class="ar" x1="475" y1="84" x2="475" y2="128" marker-end="url(#ahL4)"/>
+        <line class="ar" x1="370" y1="158" x2="388" y2="158" marker-end="url(#ahL4)"/>
+        <line class="ar acc" x1="560" y1="158" x2="578" y2="205" marker-end="url(#ahL4)"/>
+        <line class="ar acc" x1="560" y1="234" x2="578" y2="230" marker-end="url(#ahL4)"/>
+        <line class="ar acc" x1="560" y1="310" x2="578" y2="255" marker-end="url(#ahL4)"/>
+        </svg>
+      </div></figure>
+
+    <h3 class="new">Layer 5. Our news lookup skips the rule</h3>
+    <p class="new">The profile update starts from the profiling list, where Warsh is Q6397725. It then needs his news record, and today it finds that record by reading the old column alone, with no rule involved. The column is blank, so it finds nothing and reports "nothing new". Pointing the lookup at the shared rule (the dashed line) finds Warsh through the machine's guess.</p>
+    <figure class="dia ent"><div class="scroller" style="background:none;border:0;padding:0">
+        <svg viewBox="0 0 760 350" role="img" aria-label="Adds profiling list; today the lookup reads only the old column">
+        <defs><marker id="ahL5" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 z" style="fill:var(--ink-faint)"/></marker></defs>
+        <rect class="bx" x="10" y="20" width="170" height="64" rx="6"/>
+        <text class="lb" x="22" y="42">ARTICLES</text>
+        <text class="it" x="22" y="62">news, posts, filings</text>
+        <rect class="bx" x="200" y="20" width="170" height="64" rx="6"/>
+        <text class="lb" x="212" y="42">READER</text>
+        <text class="it" x="212" y="62">finds names in text</text>
+        <text class="it" x="212" y="79">matches by spelling</text>
+        <rect class="bx" x="390" y="20" width="170" height="64" rx="6"/>
+        <text class="lb" x="402" y="42">NEWS RECORD</text>
+        <text class="it" x="402" y="62">Kevin Warsh</text>
+        <text class="it" x="402" y="79">816 articles</text>
+        <rect class="bx" x="200" y="130" width="170" height="64" rx="6"/>
+        <text class="lb" x="212" y="152">WIKIDATA COPY</text>
+        <text class="it" x="212" y="172">kept on our side</text>
+        <text class="it" x="212" y="189">checked at creation</text>
+        <rect class="bx" x="390" y="130" width="170" height="56" rx="6"/>
+        <text class="lb" x="402" y="152">MACHINE GUESS</text>
+        <text class="it" x="402" y="172">Warsh: Q6397725</text>
+        <rect class="bx" x="390" y="206" width="170" height="56" rx="6"/>
+        <text class="lb" x="402" y="228">OLD ID COLUMN</text>
+        <text class="it" x="402" y="248">Warsh: blank</text>
+        <rect class="bx" x="390" y="282" width="170" height="56" rx="6"/>
+        <text class="lb" x="402" y="304">CONFIRMED IDS</text>
+        <text class="it" x="402" y="324">Warsh: none yet</text>
+        <rect class="bx" x="580" y="190" width="170" height="80" rx="6"/>
+        <text class="lb" x="592" y="212">SHARED ID RULE</text>
+        <text class="it" x="592" y="232">1 confirmed</text>
+        <text class="it" x="592" y="249">2 else old column</text>
+        <text class="it" x="592" y="266">3 else machine guess</text>
+        <rect class="bx acc" x="580" y="20" width="170" height="64" rx="6"/>
+        <text class="lb acc" x="592" y="42">PROFILING LIST</text>
+        <text class="it acc" x="592" y="62">Warsh = Q6397725</text>
+        <text class="it acc" x="592" y="79">picked by a person</text>
+        <line class="ar" x1="180" y1="52" x2="198" y2="52" marker-end="url(#ahL5)"/>
+        <line class="ar" x1="370" y1="52" x2="388" y2="52" marker-end="url(#ahL5)"/>
+        <line class="ar" x1="475" y1="84" x2="475" y2="128" marker-end="url(#ahL5)"/>
+        <line class="ar" x1="370" y1="158" x2="388" y2="158" marker-end="url(#ahL5)"/>
+        <line class="ar" x1="560" y1="158" x2="578" y2="205" marker-end="url(#ahL5)"/>
+        <line class="ar" x1="560" y1="234" x2="578" y2="230" marker-end="url(#ahL5)"/>
+        <line class="ar" x1="560" y1="310" x2="578" y2="255" marker-end="url(#ahL5)"/>
+        <line class="ar acc" x1="600" y1="84" x2="562" y2="226" marker-end="url(#ahL5)"/>
+        <line class="ar acc" x1="690" y1="84" x2="690" y2="188" stroke-dasharray="4 3" marker-end="url(#ahL5)"/>
+        <text class="cap acc" x="600" y="118">today:</text>
+        <text class="cap acc" x="600" y="131">old only</text>
+        <text class="cap acc" x="698" y="130">fix: ask</text>
+        <text class="cap acc" x="698" y="143">the rule</text>
+        </svg>
+      </div>
+      <figcaption>The full picture. Red: the path the update takes today. Dashed: the fix.</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="block new">
+    <h2>What the picture means for the 26</h2>
+    <ul class="plain">
+      <li class="new"><b>18 are fixed by the rule alone</b>, Warsh and Lula among them: their records already carry the right ID as a machine guess or a confirmed ID. <span class="st live">Have</span></li>
+      <li class="new"><b>8 need a real backfill</b>: Mary Daly, Anna Paulson, John Williams, Christopher Phelan, Francis Brooke, plus three with no ID at all (Bolsonaro, Brian Wheaton, the Houthis). The ID should go in as a confirmed ID, the way Simon's curator button does it.</li>
+      <li class="new"><b>How we know the 816 articles are him:</b> the record was made by matching Q6397725. Also, 810 of them contain "Warsh" in the text, and the other 7 are Hebrew, Arabic, Russian and Ukrainian articles where his name is written in that language's script. 68 mention "Warsh" without "Kevin"; nobody has read those one by one.</li>
+    </ul>
+  </section>
+
+  <section class="block new">
+    <h2>Open questions</h2>
+    <ol class="steps tight">
+      <li><div><p class="new"><b>Q1. Where should the ID picked at profile build go?</b> <b>Recommendation: into Simon's confirmed IDs on the existing record, the same way the curator button does it. Never into the old column, and never as a new record without checking the shared rule first.</b> <span class="st">Ask</span> Simon decides.</p></div></li>
+      <li><div><p class="new"><b>Q2. Point the news lookup at the shared rule?</b> <b>Recommendation: yes, first. It fixes 18 of the 26 with no data change.</b> <span class="st">Ask</span></p></div></li>
+    </ol>
+  </section>
+
+  <section class="block new">
+    <h2>Backlog</h2>
+    <p class="new"><b>Done means: a manual update for each of the 73 assigned people either finds their tagged articles or says "no matching person", and none says "nothing new" while tagged articles exist in its window.</b> Order: B1, then B2 and B3, then B4 once Simon answers Q1. <span class="st soon">To do</span></p>
+    <ol class="steps beads">
+      <li><div><h4>B1 &middot; News lookup asks the shared rule <span class="st soon">To do</span></h4>
+        <p class="new"><b>What it is.</b> The lookup asks the shared rule which record holds the ID, and skips archived records. <b>Why.</b> Fixes 18 of 26, including Warsh, without touching data. <b>Done when.</b> Warsh's manual update finds articles.</p></div></li>
+      <li><div><h4>B2 &middot; Confirm IDs for the remaining 8 <span class="st soon">To do</span></h4>
+        <p class="new"><b>What it is.</b> A person confirms each ID through Simon's confirmed-IDs path. <b>Why.</b> The rule has nothing to find for them. <b>Done when.</b> All 8 match a record.</p></div></li>
+      <li><div><h4>B3 &middot; "No matching person" message <span class="st soon">To do</span></h4>
+        <p class="new"><b>What it is.</b> A separate skip reason and wording when no record matches. <b>Why.</b> Today a broken match looks like a quiet week. <b>Done when.</b> A person with no record shows the new message.</p></div></li>
+      <li><div><h4>B4 &middot; Profile build records a confirmed ID <span class="st">Ask</span></h4>
+        <p class="new"><b>What it is.</b> The ID picked at first build becomes a confirmed ID on the existing record (Q1). <b>Why.</b> New profiles start without the gap. <b>Done when.</b> A fresh build leaves a confirmed ID and no second record.</p></div></li>
+    </ol>
+  </section>
+
+  <details class="agents">
+    <summary><span class="tri">&#9654;</span><h2>For agents: notes, decisions, file locations</h2><span class="hint">thorough; closed by default</span></summary>
+
+    <h3>Build state</h3>
+    <p>Nothing built, no beads filed. Read-only research 9 Oct 2026 against origin/main <code>1903f06fa</code> and prod. Draft 1 frozen at <code>~/Downloads/entity-identity-canonical-2026-10-09.draft1.html</code>.</p>
+
+    <h3>Decisions</h3>
+    <div class="scroller"><table>
+      <thead><tr><th>#</th><th>Decision</th><th>Who, when</th></tr></thead>
+      <tbody>
+        <tr class="new"><td class="mono">D1</td><td>Proposed: loadTaggedNews resolves the entity via <code>wikidataIdentityCandidateEntityIdsSql</code> (all three arms) with <code>archived_at IS NULL</code>, replacing <code>e.qid = r.qid</code>. Supersedes draft 1's "fill qid first" ordering: arm 3 already covers Warsh.</td><td class="nw">proposed</td></tr>
+        <tr><td class="mono">D2</td><td>Proposed: build-profile qid step writes a curator-style confirmed <code>entity_external_ids</code> row on the existing entity, never <code>core.entities.qid</code>, never a blind insert. Pending Simon.</td><td class="nw">proposed</td></tr>
+        <tr><td class="mono">D3</td><td>Proposed: new skip reason <code>no_entity</code> distinct from <code>no_news</code>/<code>bad_window</code>.</td><td class="nw">proposed</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Verified facts</h3>
+    <ul>
+      <li class="new">Shared-rule coverage of the 73 refresh assignments (prod, 9 Oct; join <code>refresh_assignments.dm_slug = dm_registry.slug</code>, non-archived entities): old column only path matches 47; any arm matches 65. Gap 26 = 17 found only via active <code>pipeline.entity_candidate_links.evidence-&gt;&gt;'qid'</code> (le-pen, attal, bowman, barr, glucksmann, philippe, lip-bu-tan, hammack, barkin, lisa-cook, atkins, jefferson, kevin-warsh, powell, logan, waller, melenchon) + lula via confirmed external_ids + 8 with no arm (john-williams, christopher-phelan, houthi, jbolsonaro, mary-daly, brian-wheaton, anna-paulson, francis-brooke).</li>
+      <li class="new">Warsh entity <code>01a0af33-525b-7554-94fa-0cfc04634f0e</code>: provenance auto_promoted, created 2026-09-17T11:49Z, 15 aliases (Latin, Arabic, Persian, Hebrew, Japanese, Korean, Russian, Ukrainian, Chinese); 2 active candidate links with evidence qid Q6397725; 0 entity_external_ids rows.</li>
+      <li class="new">Warsh article check: 817 linked content rows; 810 body ILIKE '%warsh%', 731 '%kevin warsh%', 68 Warsh without Kevin; the 7 without "warsh" are he/ar/uk/ru-language items (titles checked).</li>
+      <li class="new">Active candidate links: 22,329, all with evidence qid, over 19,469 entities.</li>
+      <li class="new"><code>core.entity_external_ids</code> by status/source/subtype: confirmed curator Person 118, Organization 35, State 7, GroupOfStates 1; proposed router Person 257, Organization 165, State 29; superseded router 133; rejected curator 15. Only scheme in use: wikidata (schema also allows ofac, opensanctions, fec).</li>
+      <li class="new">Authorship (git log origin/main): <code>scripts/lib/extraction/shared/entity-search.ts</code> and <code>entity-extraction.ts</code> first by Gregarious Narain 2026-06-02 (later edits by Simon Birrell and Long); <code>candidate-promotion.ts</code>, <code>entity-identity.ts</code>, <code>curator-wikidata-identifier.ts</code> by Simon Birrell from 2026-09-15; <code>apps/trigger/src/tasks/profiling/tagged-news.ts</code> by Long Nguyen 2026-10-06.</li>
+      <li>Blake's run: Trigger <code>run_06ghq0jfp085h5f3vu8lefna01</code>, task <code>indepth-refresh-manual</code>, 2026-10-08T19:34:21Z, output skipped/no_news. Sibling <code>run_06ghq0e81fb0tgikctqeppmp01</code> (lorie-logan) same.</li>
+      <li>Join: <code>tagged-news.ts</code> loadTaggedNews <code>dm_registry r JOIN core.entities e ON e.qid = r.qid JOIN pipeline.content_entities</code>; no archived filter. Skip at <code>indepth-refresh-daily.ts:255-260</code>. UI <code>update-now-form.tsx:162</code> maps no_news and bad_window to the same sentence.</li>
+      <li>Identity rule <code>packages/db/src/queries/entity-identity.ts</code> (story 5.10): precedence confirmed external_ids row &gt; legacy qid &gt; active candidate link evidence qid; "A fourth copy of this definition is a defect." Correlated and unindexed: narrow first (see <code>identityHolders</code> in candidate-promotion.ts).</li>
+      <li>Legacy column: <code>entities_qid_idx UNIQUE (qid) WHERE qid IS NOT NULL</code>; 394 of 395 qids on curated rows, last bulk touch 09-18; 9 contradict a confirmed entry (Apple = Q89). Writer allowlist <code>apps/trigger/test/entity-qid-provenance-scope.test.ts:150-224</code>; AD-9 retires it (<code>docs/glossary.md</code> "Wikidata QID").</li>
+      <li>Merges archive the absorbed entity and leave its legacy qid (<code>entity-identity-decisions.ts:9-36</code>). Tagger search is trigram name + exact aliases on non-archived rows (<code>entity-search.ts:35-69</code>), never qid; new entities get future links only.</li>
+      <li>dm_registry qid human-confirmed path: <code>.claude/skills/build-profile/SKILL.md:50-63</code> → <code>scripts/profile-agent/identity.ts</code> → <code>profiling/dmRegistry/update</code> RPC → <code>upsertDmRegistryPatch</code>. Other writers (Wikidata connector, race roster seed, import router) are not human-confirmed.</li>
+    </ul>
+
+    <h3>Background</h3>
+    <p>Draft 1 recommended filling the legacy column for ~15 people first. Draft 2 found arm 3 (machine guess on candidate links) already carries the right qid for 17 of the 26, so the lookup change comes first and the backfill shrinks to 8. Long's proposal (9 Oct): profile build writes the confirmed qid into core.entities; kept as B4 routed through confirmed external ids.</p>
+
+    <h3>Files and locations</h3>
+    <ul>
+      <li><code>/Users/nguyenv/conspectus/conspectus</code>: repo (local checkout behind; use <code>git show origin/main:&lt;path&gt;</code>).</li>
+      <li class="new"><code>/private/tmp/claude-501/-Users-nguyenv-conspectus/8928baac-d2f2-454f-9f2f-2ba4032841bb/scratchpad/q.sh</code>: read-only prod query helper (session scratch); <code>svg.py</code> beside it generates the five layer diagrams.</li>
+    </ul>
+
+    <h3>Knowledge base and memory</h3>
+    <ul>
+      <li><code>/Users/nguyenv/conspectus/.claude/discover-kb/conspectus/manual-update-no-news-qid-gap-2026-10-09.md</code></li>
+      <li><code>/Users/nguyenv/.claude/projects/-Users-nguyenv-conspectus/memory/project_warsh_no_news_qid_gap.md</code></li>
+      <li><code>/Users/nguyenv/.claude/projects/-Users-nguyenv-conspectus/memory/project_daily_news_refresh_research.md</code></li>
+    </ul>
+
+    <h3>Reproduce</h3>
+<pre>-- prod, read-only: which arm finds each assigned person
+with ra as (select r.slug, r.qid from profiling.refresh_assignments a
+            join profiling.dm_registry r on r.slug = a.dm_slug)
+select ra.slug,
+  exists(select 1 from core.entities e where e.qid = ra.qid and e.archived_at is null) as col,
+  exists(select 1 from core.entity_external_ids x join core.entities e on e.id = x.entity_id
+         where x.scheme='wikidata' and x.status='confirmed' and x.external_id = ra.qid and e.archived_at is null) as conf,
+  exists(select 1 from pipeline.entity_candidate_links l join core.entities e on e.id = l.entity_id
+         where l.status='active' and l.evidence->>'qid' = ra.qid and e.archived_at is null) as guess
+from ra;</pre>
+  </details>
+
+</div>
+
+<div class="edit-bar"><span class="msg" id="edit-msg"></span><button id="edit-btn" type="button">Edit</button><button id="save-btn" type="button">Save</button></div>
+<script>
+  /* ponytail: edit in place, save the whole page back to disk. First save asks
+     where (pick this same file to overwrite); later saves reuse that file. */
+  (function () {
+    var wrap = document.querySelector(".wrap"), eb = document.getElementById("edit-btn"),
+        sb = document.getElementById("save-btn"), msg = document.getElementById("edit-msg"), handle = null;
+    function setEditing(on) { wrap.contentEditable = on ? "true" : "false"; eb.classList.toggle("on", on); eb.textContent = on ? "Done" : "Edit"; }
+    eb.onclick = function () { setEditing(!wrap.isContentEditable); };
+    async function save() {
+      var was = wrap.isContentEditable; wrap.removeAttribute("contenteditable"); eb.classList.remove("on"); eb.textContent = "Edit"; msg.textContent = "";
+      var doc = document.documentElement.cloneNode(true);
+      doc.querySelectorAll("canvas").forEach(function (c) { ["width", "height", "style"].forEach(function (a) { c.removeAttribute(a); }); c.classList.remove("on"); if (!c.getAttribute("class")) c.removeAttribute("class"); });
+      var html = doc.outerHTML;
+      if (was) setEditing(true);
+      var name = decodeURIComponent(location.pathname.split("/").pop() || "report.html");
+      try {
+        if (window.showSaveFilePicker) {
+          if (!handle) handle = await showSaveFilePicker({ suggestedName: name, startIn: "downloads", types: [{ description: "HTML", accept: { "text/html": [".html"] } }] });
+          var w = await handle.createWritable(); await w.write(html); await w.close();
+        } else {
+          var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([html], { type: "text/html" })); a.download = name; a.click();
+        }
+        msg.textContent = "Saved " + new Date().toLocaleTimeString();
+      } catch (e) { if (e.name !== "AbortError") msg.textContent = "Not saved: " + e.message; }
+    }
+    sb.onclick = save;
+    document.addEventListener("keydown", function (e) { if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); save(); } });
+  })();
+</script>
+
+<script>
+  /* Dither field — the same 8x8 Bayer matrix, 3px pitch, 1px cell and three
+     drifting blobs the marketing site uses, painted once per layout rather
+     than on an animation frame: a guide is read, not explored. */
+  (function () {
+    var BAYER = [
+      [0,32,8,40,2,34,10,42],[48,16,56,24,50,18,58,26],
+      [12,44,4,36,14,46,6,38],[60,28,52,20,62,30,54,22],
+      [3,35,11,43,1,33,9,41],[51,19,59,27,49,17,57,25],
+      [15,47,7,39,13,45,5,37],[63,31,55,23,61,29,53,21]];
+    var PITCH = 3, CELL = 1, AMP = 2.5;
+    var BLOBS = [{x:0.00,y:0.02,r:0.60,k:0.95},{x:1.02,y:0.55,r:0.42,k:0.70},{x:0.55,y:1.05,r:0.36,k:0.35}];
+    var cv = document.getElementById("dither");
+    if (!cv || !cv.getContext) return;
+    var ctx = cv.getContext("2d");
+    if (!ctx) return;
+    function paint() {
+      var w = window.innerWidth, h = window.innerHeight;
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      cv.width = Math.floor(w * dpr); cv.height = Math.floor(h * dpr);
+      cv.style.width = w + "px"; cv.style.height = h + "px";
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = getComputedStyle(document.body).color;
+      var cols = Math.ceil(w / PITCH), rows = Math.ceil(h / PITCH);
+      for (var gy = 0; gy < rows; gy += 2) {
+        for (var gx = 0; gx < cols; gx += 2) {
+          var x = gx * PITCH, y = gy * PITCH, level = 0;
+          for (var b = 0; b < BLOBS.length; b++) {
+            var B = BLOBS[b];
+            var dx = (x / w - B.x) / B.r, dy = (y / h - B.y) / B.r;
+            var d = Math.sqrt(dx * dx + dy * dy);
+            if (d < 1) level += (1 - d) * B.k;
+          }
+          if (level <= 0.02) continue;
+          ctx.globalAlpha = Math.min(0.8, (0.06 + 0.22 * Math.min(1, level)) * AMP) * 0.34;
+          for (var sy = 0; sy < 2; sy++) {
+            for (var sx = 0; sx < 2; sx++) {
+              var cx = gx + sx, cy = gy + sy;
+              if (cx >= cols || cy >= rows) continue;
+              if (level > (BAYER[cy & 7][cx & 7] / 64) * 0.9) {
+                ctx.fillRect(Math.floor(cx * PITCH + (PITCH - CELL) / 2),
+                             Math.floor(cy * PITCH + (PITCH - CELL) / 2), CELL, CELL);
+              }
+            }
+          }
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
+    paint();
+    var t; window.addEventListener("resize", function () { clearTimeout(t); t = setTimeout(paint, 150); });
+
+    var halo = document.getElementById("halo");
+    var R = 150, SIZE = R * 2;
+    function paintHalo() {
+      if (!halo || !halo.getContext) return;
+      var hctx = halo.getContext("2d");
+      if (!hctx) return;
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      halo.width = SIZE * dpr; halo.height = SIZE * dpr;
+      halo.style.width = SIZE + "px"; halo.style.height = SIZE + "px";
+      hctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      hctx.clearRect(0, 0, SIZE, SIZE);
+      hctx.fillStyle = getComputedStyle(document.body).color;
+      var cells = Math.ceil(SIZE / PITCH);
+      for (var yy = 0; yy < cells; yy++) {
+        for (var xx = 0; xx < cells; xx++) {
+          var px = xx * PITCH, py = yy * PITCH;
+          var ddx = px - R, ddy = py - R;
+          var dist = Math.sqrt(ddx * ddx + ddy * ddy);
+          if (dist > R) continue;
+          var presence = 1 - dist / R;
+          if (presence < 0.02) continue;
+          hctx.globalAlpha = Math.min(0.8, 0.14 * AMP * presence * presence) * 0.42;
+          if (presence > (BAYER[yy & 7][xx & 7] / 64) * 0.9) {
+            hctx.fillRect(Math.floor(px + (PITCH - CELL) / 2),
+                          Math.floor(py + (PITCH - CELL) / 2), CELL, CELL);
+          }
+        }
+      }
+      hctx.globalAlpha = 1;
+    }
+    paintHalo();
+
+    var pending = false, mx = 0, my = 0;
+    window.addEventListener("mousemove", function (e) {
+      mx = e.clientX; my = e.clientY;
+      if (!halo.classList.contains("on")) halo.classList.add("on");
+      if (pending) return;
+      pending = true;
+      window.requestAnimationFrame(function () {
+        pending = false;
+        halo.style.transform = "translate3d(" + (mx - R) + "px," + (my - R) + "px,0)";
+      });
+    });
+    window.addEventListener("mouseleave", function () { halo.classList.remove("on"); });
+
+  })();
+</script>
+
+</body></html>

@@ -122,6 +122,16 @@ Inline SVG in the `figure.dia.ent` convention (commented example in the template
 - **Generate the layers from one script.** Write a small Python file in the scratchpad that holds each box as (x, y, w, h, label, lines, layer) and each arrow as (x1, y1, x2, y2, layer, style), and prints the SVG for a given layer. Splice its output into the page. Hand-copying five SVGs drifts.
 - **Text per layer:** a heading that states the layer's point as a sentence ("Our news lookup skips the rule"), then at most three or four plain sentences, then the diagram. A term gets explained in the layer where its box first appears, not in a glossary.
 - **Order layers from the data's origin to the problem.** The last layer shows the path that breaks today as a solid red arrow labelled "today" and the fix as a dashed arrow labelled "fix".
+- **Pin every PR to the boxes it changes, on every layer.** (Long, 9 Oct: "when we mentioned PRs being made, I just want to relate it back to the architecture"; then "every layer has its PR marked in the components in the layer.") Once a page's work has PRs, each box a PR changes carries a small pill tag with the PR number (`#3184`) on its top edge, in every layer where that box is drawn, not only the last one. Orange (`acc`) = open, grey = merged. Under each layer's diagram, one legend line per PR whose box is in that layer: number, then what it changes, in plain words. When a PR changes something the picture has no box for (a cache, a queue), add that box in a new layer rather than leaving the PR off the picture. The turn section that reports the PRs reuses the same tagged picture, not a separate PR-stack chart, and states the merge order in its caption. The generator holds the tags as a table, `PR = [(box_key, dx, "#NNNN", merged)]`, next to the boxes; `example-layered-svg.py` has the code.
+
+<!-- few-shot: document-pr-tags-on-layers -->
+```text
+BAD   A row of four boxes "#3177 MERGED -> #3184 GREEN -> #3189 -> #3194" beside the layers.
+      Why: says the merge order, not what each PR changes in the system.
+GOOD  Layer 1's FIRST PASS box wears #3177 (grey) and #3194 (orange); Layer 2's CHECKS box
+      wears #3184; a new CACHE box in Layer 6 wears #3189; each layer's legend lists only
+      the PRs drawn on it.
+```
 - **Conclusions go after the layers,** in one short section (a few bullets) of what the picture means for the work, then Open questions, then Backlog. Backlog items are one line each for What / Why / Done when, not four paragraphs.
 - **Reference page:** `<skill-dir>/example-layered.html` is a finished example of this shape (a frozen copy of the 9 Oct entity-identity page, draft 2). Its generator is `<skill-dir>/example-layered-svg.py`: a table of boxes and arrows plus a `svg(layer)` function. Copy and adapt the generator; don't start from scratch. Pull one layer with `awk '/Layer 2\./,/<\/figure>/' <page> | head -60` instead of reading it whole.
 
