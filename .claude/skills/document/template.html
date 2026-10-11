@@ -324,6 +324,11 @@
     td .note { white-space: normal; }
     /* One highlight color for the latest update only. Older text has no class and renders in the normal ink. */
     .new{--uc:rgb(0,104,150)}
+    .upd{border-left:3px solid rgb(0,104,150);background:rgba(0,104,150,.06);padding:10px 14px;margin:10px 0 18px;border-radius:0 6px 6px 0}
+    .upd p{margin:4px 0}
+    .ltodo{border:1px solid var(--rule,#d9dede);border-radius:6px;padding:8px 14px;margin:6px 0 22px}
+    .ltodo h4{margin:6px 0 4px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-faint,#777)}
+    .ltodo p{margin:8px 0;font-size:15px}
     .new { color: var(--uc); }
     .new :is(p,td,h3,h4,li,i,b,.note,.w) { color: var(--uc); }
     ol.steps p.new { color: var(--uc); }
@@ -364,10 +369,15 @@
   </section>
 
   <section class="block">
-    <h2>How it works</h2>
-    <ol class="steps tight">
-      <li><div><p><b>The goal.</b> One layer at a time, plain language, why before how. <span class="st soon">To do</span></p></div></li>
-    </ol>
+    <h2 id="done-means">Done means</h2>
+    <p><b>One bold sentence per goal that a script can check.</b> <span class="st soon">To do</span></p>
+    <p>How to read the layers below: each layer shows the system, then a blue note on what this update found and plans there, then that layer's to-do: every piece that changes it, with what it is, why we need it, what happens without it, when it is done, and which pieces it waits on. Blue is this update.</p>
+  </section>
+
+  <section class="block">
+    <h2>How it works, layer by layer</h2>
+    <h3>Layer 1. The layer's point as a sentence</h3>
+    <p>Two or three plain sentences, why before how. <span class="st soon">To do</span></p>
     <!-- Diagram convention:
     <figure class="dia ent"><div class="scroller" style="background:none;border:0;padding:0">
       <svg viewBox="0 0 760 236" role="img" aria-label="...">
@@ -379,42 +389,19 @@
       </svg></div>
       <figcaption>...</figcaption>
     </figure> -->
+    <div class="upd new"><p><b>This update, found:</b> what we learned about this layer, with the number.</p><p><b>This update, plan:</b> what we do next here.</p></div>
+    <div class="ltodo"><h4>To-do for this layer</h4>
+      <p class="new"><b>.1 Short name</b> <span class="st soon">To do</span><br>What: one sentence. Why: one sentence. Without it: one sentence. Done when: a checkable result. Waits on: nothing.</p>
+    </div>
   </section>
 
   <section class="block">
-    <h2>Backlog</h2>
-    <p><b>N pieces of work, grouped by the layer they change.</b> Each says what it is, why we need it, what happens without it, and when it counts as done.</p>
-
-    <h3>The plan</h3>
-    <p><b>Done means: one sentence a script can check.</b> Build order in one or two sentences. <span class="st soon">To do</span></p>
-
-    <h3>Progress, DATE</h3>
-    <p><b>One-sentence state of play.</b></p>
-    <div class="scroller"><table>
-      <thead><tr><th>Item</th><th>Pull request</th><th>Merge after</th><th>What merging turns on</th></tr></thead>
-      <tbody>
-        <tr><td>B1 short name</td><td>#&hellip;</td><td>nothing</td><td>What changes in production</td></tr>
-      </tbody>
-    </table></div>
-
-    <h3>Waiting on an answer</h3>
-    <ol class="steps tight">
-      <li><div><p><b>Long:</b> the question. <span class="st">Ask</span></p></div></li>
-    </ol>
-
-    <h3>What we&rsquo;re not sure of yet</h3>
-    <ol class="steps tight">
-      <li><div><p>What is unknown, and what would settle it.</p></div></li>
-    </ol>
-
-    <h3>1. First group</h3>
-    <ol class="steps beads">
-      <li><div><h4>B1 <span class="mono" style="font-size:13px">bead-id</span> &middot; Short name of the work <span class="st soon">To do</span></h4>
-        <p><b>What it is.</b> One or two plain sentences.</p>
-        <p><b>Why we need it.</b> The number or problem behind it.</p>
-        <p><b>Without it.</b> What keeps happening.</p>
-        <p><b>Done when.</b> A checkable result.</p></div></li>
-    </ol>
+    <h2 id="open">Open questions</h2>
+    <h3>1. The question</h3>
+    <p><b>Background.</b> The part of the system it touches (point at the layer).</p>
+    <p><b>Why it came up.</b> What we found, with the number.</p>
+    <p><b>The choice.</b> The options in plain words, with what each costs or risks.</p>
+    <p><b>My recommendation: ...</b> and what happens next if he says yes. <span class="st">Ask</span></p>
   </section>
 
   <details class="agents">
