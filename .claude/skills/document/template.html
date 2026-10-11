@@ -334,6 +334,9 @@
     ol.steps p.new { color: var(--uc); }
     .new ol.steps :is(p,h4) { color: var(--uc); }
     ol.steps.beads p { margin: 4px 0; }
+    /* "Original pain point" paragraph that opens each layer: always red, even in the latest update. */
+    p.pain, p.pain b, p.pain.new, p.pain.new b { color: #b3261e; }
+    @media (prefers-color-scheme: dark) { p.pain, p.pain b, p.pain.new, p.pain.new b { color: #ff8a80; } }
     .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: 0; background: var(--uc); }
     ol.steps.tight { gap: 10px; } ol.steps.tight p { margin: 0; }
     ul.plain { margin: 12px 0 0; padding-left: 18px; max-width: 64ch; } ul.plain li { margin: 6px 0; font-size: 15.5px; line-height: 1.6; }
@@ -377,6 +380,7 @@
   <section class="block">
     <h2>How it works, layer by layer</h2>
     <h3>Layer 1. The layer's point as a sentence</h3>
+    <p class="pain"><b>Original pain point:</b> the concrete problem that made this layer matter, with the real example.</p>
     <p>Two or three plain sentences, why before how. <span class="st soon">To do</span></p>
     <!-- Diagram convention:
     <figure class="dia ent"><div class="scroller" style="background:none;border:0;padding:0">
@@ -389,7 +393,7 @@
       </svg></div>
       <figcaption>...</figcaption>
     </figure> -->
-    <div class="upd new"><p><b>This update, found:</b> what we learned about this layer, with the number.</p><p><b>This update, plan:</b> what we do next here.</p></div>
+    <div class="upd"><p><b>Found:</b> the problem in this layer from first principles: what goes wrong, why it matters, the number. <span class="new">New or changed sentences only are blue.</span></p><p><b>Plan:</b> what we do about it, and why.</p></div>
     <div class="ltodo"><h4>To-do for this layer</h4>
       <p class="new"><b>.1 Short name</b> <span class="st soon">To do</span><br>What: one sentence. Why: one sentence. Without it: one sentence. Done when: a checkable result. Waits on: nothing.</p>
     </div>
