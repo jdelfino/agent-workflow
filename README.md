@@ -71,6 +71,18 @@ In short: `/plan` turns a feature into tasks with dependencies and a win conditi
 
 `/plan` runs the plan reviewer once after the tasks are filed, and shows you what it found. To keep going until it approves, say so in the same message: "run the plan reviewer again after each fix until it approves." The harness does not loop on its own. You decide when you trust the plan.
 
+## Auto-handoff at 256k tokens
+
+Model quality drops as a session's context fills. Published long-context scores hold roughly flat to about 256k tokens and fall steeply after that (GPT-5.4 on MRCR v2: 79% at 128k-256k, 57.5% at 256k-512k, 36.6% at 512k-1M). So the harness compacts at 256k and treats the compaction summary as a handoff, letting the same session carry on without anyone typing.
+
+- `.claude/settings.json` sets `"autoCompactWindow": 256000`. Change that number to move the trigger.
+- The summary follows the `## Compact Instructions` section in `CLAUDE.md`: what was verified and how, what was ruled out and why, open items with one next action each, and a closing TLDR/Next block. Keep that section when you replace the template `CLAUDE.md` with your own.
+- After compaction, `.claude/hooks/save-compact-summary.sh` writes the summary to `~/.claude/handoffs/<date>-<time>-compact-<first 8 chars of session id>.md`. Each session gets its own file, so parallel agents never share one.
+- A second PostCompact hook (`asyncRewake`) wakes the session about 2 seconds later and tells it to continue from the summary's Next line. Claude Code shows this as a "Stop hook blocking error" notification. That label is expected; the notification is the wake-up.
+- A SessionStart hook with the `compact` matcher repeats the rule: pick up from TLDR/Next, do not re-check what was verified, do not retry what was ruled out.
+
+If you also have these hooks in `~/.claude/settings.json`, remove them there. Otherwise both copies fire and the session gets woken twice.
+
 ## Parts you can swap
 
 The loop is the same everywhere. These pieces are the ones this repo happens to use, and each has a plain-language role you can fill another way.

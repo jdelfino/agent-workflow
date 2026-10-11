@@ -17,6 +17,16 @@
             "command": "cat AGENTS.md"
           }
         ]
+      },
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 5,
+            "command": "echo \"You were just compacted. Your summary above is the handoff (also saved in ~/.claude/handoffs/ as a file ending in -compact-<first 8 chars of this session id>.md). Pick up from its TLDR and Next lines as if they were the user's kickoff message: do not re-verify anything listed as verified, do not retry anything listed as ruled out.\""
+          }
+        ]
       }
     ],
     "PreToolUse": [
@@ -52,9 +62,27 @@
           }
         ]
       }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/save-compact-summary.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "asyncRewake": true,
+            "timeout": 30,
+            "command": "sleep 2; echo \"Compaction finished. Continue now from your summary TLDR Next line as if the user just sent it; do not wait for a message. Do not re-verify Verified items or retry Ruled out items.\"; exit 2"
+          }
+        ]
+      }
     ]
   },
   "enabledPlugins": {
     "beads@beads-marketplace": true
-  }
+  },
+  "autoCompactWindow": 256000
 }

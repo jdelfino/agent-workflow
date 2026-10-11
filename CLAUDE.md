@@ -40,6 +40,32 @@ Document your project's conventions:
 - Code style preferences
 - Architecture patterns
 
+## Compact Instructions
+
+Keep this section when you replace this file. Claude Code reads it when it compacts the conversation, and the harness treats the result as a handoff (see "Auto-handoff at 256k tokens" in the README). Compaction cannot run skills or tools, so the handoff format lives here as text.
+
+Write the summary so the next agent starts where we ended, not where we began. Assume the reader has no memory of this conversation and cannot ask questions. Use absolute paths. Use these sections in order, writing "none" for an empty one:
+
+```
+# Session Handoff: <one-line title>
+## Where it started
+## Ruled out, do not retry (approach, symptom, root cause)
+## Running state (background shell/agent IDs + how to stop, dev servers, worktrees)
+## Key files for next session
+## Verified this session, and how (each fact with the command/file/probe that proved it)
+## Deferred + open questions (each open item with its single next action)
+## Pick up here
+```
+
+End with this block, filled in:
+
+```
+TLDR: <2-4 lines: what exists now, its state, what is blocking; real paths, IDs, branches>
+Next: <the single next action, as an instruction>
+Do not re-verify anything under "Verified this session", and do not retry anything
+under "Ruled out"; both were settled and the reasons are recorded.
+```
+
 ## Workflow
 
 This project uses an agent-friendly development workflow. Use `/plan` to decompose features into issues and `/work` to implement them. See `AGENTS.md` for full documentation and `.claude/skills/` for agent instructions.
